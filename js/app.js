@@ -1,0 +1,268 @@
+/**
+ * Geoportal Temuco - Catastro en Tiempo Real
+ * Integración Leaflet + Google Sheets + Google Drive
+ */
+
+// --- CONFIGURACIÓN ---
+const CONFIG = {
+    MAP_CENTER: [-38.7359, -72.5904],
+    INITIAL_ZOOM: 14,
+    // URL del Google Sheet publicado como CSV. 
+    // Para probar, se puede usar un archivo local o una URL de ejemplo.
+    SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTM9vKw4CQimv9A7xagyzecSKk9P-_4m7qJ8ykCmP3p9a8CrbMp1Rls_pEoxXFV0gXOpI9AOlMSpygA/pub?output=csv', 
+    REFRESH_INTERVAL: 0 // set to > 0 if auto-refresh is desired (ms)
+};
+
+// --- VARIABLE GLOBAL DEL MAPA ---
+let map;
+let markerLayer = L.layerGroup();
+
+// --- INICIALIZACIÓN ---
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    initSidebar();
+    loadTerritorialData();
+});
+
+function initMap() {
+    // Mapas Base
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    });
+
+    const esriWorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    });
+
+    // Inicializar Mapa
+    map = L.map('map', {
+        center: CONFIG.MAP_CENTER,
+        zoom: CONFIG.INITIAL_ZOOM,
+        layers: [esriWorldImagery] // Default layer
+    });
+
+    // Control de Capas
+    const baseMaps = {
+        "Terreno (Esri)": esriWorldImagery,
+        "Calles (OSM)": osm
+    };
+
+    const overlayMaps = {
+        "Catastro en Terreno": markerLayer
+    };
+
+    L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
+    
+    // Add marker layer to map by default
+    markerLayer.addTo(map);
+}
+
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const toggleIcon = document.getElementById('toggleIcon');
+
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        
+        // Actualizar icono (Lucide)
+        if (sidebar.classList.contains('collapsed')) {
+            toggleIcon.setAttribute('data-lucide', 'chevron-right');
+        } else {
+            toggleIcon.setAttribute('data-lucide', 'chevron-left');
+        }
+        lucide.createIcons();
+
+        // Reajustar tamaño del mapa después de la animación
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 300);
+    });
+}
+
+/**
+ * Función principal de carga de datos
+ */
+async function loadTerritorialData() {
+    console.log("Iniciando solicitud de datos...");
+
+    // Añadir un cache-buster para evitar versiones obsoletas de Google Sheets
+    const timestamp = new Date().getTime();
+    const sheetUrl = `${CONFIG.SHEET_CSV_URL}&t=${timestamp}`;
+    
+    // URL Final (con Proxy si es local)
+    let finalUrl = sheetUrl;
+    if (window.location.protocol === 'file:') {
+        console.log("Acceso LOCAL detectado. Usando Proxy: corsproxy.io");
+        finalUrl = `https://corsproxy.io/?${encodeURIComponent(sheetUrl)}`;
+    }
+
+    console.log("URL de descarga:", finalUrl);
+
+    try {
+        const response = await fetch(finalUrl);
+        if (!response.ok) throw new Error(`El servidor respondió con código ${response.status}`);
+        
+        const csvText = await response.text();
+        console.log("Contenido recibido. Primeros caracteres:", csvText.substring(0, 80));
+
+        if (csvText.includes("<!DOCTYPE html>") || csvText.includes("<html")) {
+            throw new Error("El archivo recibido es HTML (posible error de permisos), no un CSV.");
+        }
+
+        Papa.parse(csvText, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                console.log(`Parseo completado. Filas encontradas: ${results.data.length}`);
+                processEntries(results.data);
+            }
+        });
+
+    } catch (err) {
+        console.error("FALLO CRÍTICO DE CARGA:", err);
+        console.log("Cargando datos de respaldo (Demo)...");
+        showDemoData();
+    }
+}
+
+/**
+ * Procesa cada fila del CSV para crear marcadores
+ */
+function processEntries(data) {
+    // Limpiar marcadores existentes
+    markerLayer.clearLayers();
+
+    // Definir proyección UTM Zona 18 Sur (Chile - Temuco)
+    const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
+    const wgs84 = "EPSG:4326";
+
+    let markerCount = 0;
+
+    data.forEach((row, index) => {
+        // Mapeo dinámico de columnas (busca palabras clave en los encabezados)
+        const keys = Object.keys(row);
+        const colLat = keys.find(k => k.toLowerCase().includes('latitud'));
+        const colLng = keys.find(k => k.toLowerCase().includes('longitud'));
+        const colName = keys.find(k => k.toLowerCase().includes('nombre') || k.toLowerCase().includes('propietario'));
+        const colObs = keys.find(k => k.toLowerCase().includes('observaci') || k.toLowerCase().includes('comentario'));
+        const colImg = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen'));
+
+        // Limpieza de valores (remover espacios y asegurar que sean números)
+        let valLatRaw = row[colLat];
+        let valLngRaw = row[colLng];
+        
+        if (valLatRaw === undefined || valLngRaw === undefined) return;
+
+        let valLat = parseFloat(String(valLatRaw).replace(',', '.'));
+        let valLng = parseFloat(String(valLngRaw).replace(',', '.'));
+
+        const Nombre_Propietario = row[colName];
+        const Observaciones = row[colObs];
+        const URL_Imagen_Drive = row[colImg];
+
+        let finalLat, finalLng;
+
+        // DETECTAR FORMATO (UTM vs WGS84)
+        if (Math.abs(valLat) > 1000 || Math.abs(valLng) > 1000) {
+            if (typeof proj4 === 'undefined') {
+                console.error("Proj4 no cargado.");
+                return;
+            }
+            try {
+                // Conversión de UTM 18S a WGS84
+                const coords = proj4(utm18S, wgs84, [valLat, valLng]);
+                finalLng = coords[0];
+                finalLat = coords[1];
+            } catch (e) {
+                console.error("Error en conversión UTM:", e);
+                return;
+            }
+        } else {
+            finalLat = valLat;
+            finalLng = valLng;
+        }
+
+        if (!isNaN(finalLat) && !isNaN(finalLng)) {
+            markerCount++;
+            const directImageUrl = transformDriveUrl(URL_Imagen_Drive);
+
+            const popupContent = `
+                <div class="popup-container">
+                    <img src="${directImageUrl}" class="popup-image" alt="Foto terreno" onerror="this.src='https://via.placeholder.com/250x150/222/666?text=Sin+Imagen'">
+                    <div class="popup-details">
+                        <h4>${Nombre_Propietario || 'S/N'}</h4>
+                        <p>${Observaciones || '-'}</p>
+                        <div class="coord-badge">WGS84: ${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}</div>
+                    </div>
+                </div>
+            `;
+
+            const marker = L.circleMarker([finalLat, finalLng], {
+                radius: 8,
+                fillColor: "#f97316",
+                color: "#fff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).bindPopup(popupContent);
+
+            markerLayer.addLayer(marker);
+        }
+    });
+
+    console.log(`Marcadores creados: ${markerCount}`);
+
+    if (markerCount === 0 && data.length > 0) {
+        alert("Atención: Se recibieron datos de la planilla, pero no se pudieron procesar las coordenadas. Revisa el formato de Latitud/Longitud.");
+    }
+
+    // Si hay datos, ajustar la vista (opcional)
+    if (data.length > 0 && !CONFIG.SHEET_CSV_URL.includes('PLACEHOLDER')) {
+        const group = new L.featureGroup(markerLayer.getLayers());
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+}
+
+/**
+ * Transforma: https://drive.google.com/open?id=ID_DEL_ARCHIVO
+ * A: https://drive.google.com/uc?export=view&id=ID_DEL_ARCHIVO
+ */
+function transformDriveUrl(url) {
+    if (!url) return '';
+    
+    // Regex para capturar el ID de diferentes formatos de URL de Drive
+    const driveIdRegex = /(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/;
+    const match = url.match(driveIdRegex);
+
+    if (match && match[1]) {
+        return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    }
+
+    return url; // Retorna original si no coincide
+}
+
+/**
+ * Función de respaldo (Demo) en caso de que no haya CSV conectado
+ */
+function showDemoData() {
+    const demoData = [
+        {
+            Latitud: -38.7359,
+            Longitud: -72.5904,
+            Nombre_Propietario: "Predio Central Temuco",
+            Observaciones: "Inspección de rutina realizada. Todo en orden.",
+            URL_Imagen_Drive: "https://drive.google.com/open?id=1WvX8BfS_E0y_u1uX6_k-HkXpC-m8u-Ym"
+        },
+        {
+            Latitud: -38.7400,
+            Longitud: -72.6000,
+            Nombre_Propietario: "Sector Av. Alemania",
+            Observaciones: "Necesita mantenimiento de cercado perimetral.",
+            URL_Imagen_Drive: "https://drive.google.com/open?id=1Z-0I4Z_S0y_u1uX6_k-HkXpC-m8u-Z1"
+        }
+    ];
+    processEntries(demoData);
+}
