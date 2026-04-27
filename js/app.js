@@ -171,8 +171,11 @@ function processEntries(data) {
         const colName = keys.find(k => k.toLowerCase().includes('nombre') || k.toLowerCase().includes('propietario'));
         const colObs = keys.find(k => k.toLowerCase().includes('observaci') || k.toLowerCase().includes('comentario'));
         const colImg = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen'));
+        const colDate = keys.find(k => k.toLowerCase().includes('fecha') || k.toLowerCase().includes('marca temporal') || k.toLowerCase().includes('timestamp'));
+        const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('trabajo'));
+        const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
 
-        // Limpieza de valores (remover espacios y asegurar que sean números)
+        // Limpieza de valores
         let valLatRaw = row[colLat];
         let valLngRaw = row[colLng];
         
@@ -181,9 +184,12 @@ function processEntries(data) {
         let valLat = parseFloat(String(valLatRaw).replace(',', '.'));
         let valLng = parseFloat(String(valLngRaw).replace(',', '.'));
 
-        const Nombre_Propietario = row[colName];
+        const Nombre = row[colName];
         const Observaciones = row[colObs];
         const URL_Imagen_Drive = row[colImg];
+        const Fecha = row[colDate];
+        const Modificacion = row[colMod];
+        const NumeroID = row[colId];
 
         let finalLat, finalLng;
 
@@ -213,11 +219,27 @@ function processEntries(data) {
 
             const popupContent = `
                 <div class="popup-container">
+                    <div class="popup-header">
+                        <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
+                        <h4>${Nombre || 'Señalética'}</h4>
+                    </div>
                     <img src="${directImageUrl}" class="popup-image" alt="Foto terreno" onerror="this.src='https://via.placeholder.com/250x150/222/666?text=Sin+Imagen'">
                     <div class="popup-details">
-                        <h4>${Nombre_Propietario || 'S/N'}</h4>
-                        <p>${Observaciones || '-'}</p>
-                        <div class="coord-badge">WGS84: ${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}</div>
+                        <div class="detail-item">
+                            <strong><i data-lucide="calendar"></i> Fecha:</strong>
+                            <span>${Fecha || 'No registrada'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i data-lucide="wrench"></i> Modificación:</strong>
+                            <span>${Modificacion || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i data-lucide="info"></i> Observaciones:</strong>
+                            <p>${Observaciones || '-'}</p>
+                        </div>
+                        <div class="coord-badge">
+                            <i data-lucide="map-pin"></i> ${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}
+                        </div>
                     </div>
                 </div>
             `;
@@ -229,7 +251,14 @@ function processEntries(data) {
                 weight: 2,
                 opacity: 1,
                 fillOpacity: 0.8
-            }).bindPopup(popupContent);
+            }).bindPopup(popupContent, {
+                maxWidth: 300,
+                className: 'custom-popup'
+            });
+
+            marker.on('popupopen', () => {
+                lucide.createIcons();
+            });
 
             markerLayer.addLayer(marker);
         }
