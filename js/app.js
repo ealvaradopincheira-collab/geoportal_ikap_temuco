@@ -170,7 +170,7 @@ function processEntries(data) {
         const colLng = keys.find(k => k.toLowerCase().includes('longitud'));
         const colName = keys.find(k => k.toLowerCase().includes('nombre') || k.toLowerCase().includes('propietario'));
         const colObs = keys.find(k => k.toLowerCase().includes('observaci') || k.toLowerCase().includes('comentario'));
-        const colImg = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen'));
+        const colImg = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen') || k.toLowerCase().includes('fotografía'));
         const colDate = keys.find(k => k.toLowerCase().includes('fecha') || k.toLowerCase().includes('marca temporal') || k.toLowerCase().includes('timestamp'));
         const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('trabajo'));
         const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
@@ -223,7 +223,7 @@ function processEntries(data) {
                         <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
                         <h4>${Nombre || 'Señalética'}</h4>
                     </div>
-                    <img src="${directImageUrl}" class="popup-image" alt="Foto terreno" onerror="this.src='https://via.placeholder.com/250x150/222/666?text=Sin+Imagen'">
+                    <img src="${directImageUrl}" class="popup-image" alt="Foto terreno" onerror="this.src='https://placehold.co/400x250/222/f97316?text=Sin+Imagen'">
                     <div class="popup-details">
                         <div class="detail-item">
                             <strong><i data-lucide="calendar"></i> Fecha:</strong>
