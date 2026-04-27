@@ -183,10 +183,12 @@ function processEntries(data) {
         const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
 
         // Priorizar coordenadas: ESTE/NORTE (UTM) o LAT/LNG
-        let valLatRaw = row[colLat] || row[colY];
-        let valLngRaw = row[colLng] || row[colX];
+        // Buscamos un valor que no esté vacío
+        let valLatRaw = (row[colLat] && String(row[colLat]).trim() !== "") ? row[colLat] : row[colY];
+        let valLngRaw = (row[colLng] && String(row[colLng]).trim() !== "") ? row[colLng] : row[colX];
         
-        if (valLatRaw === undefined || valLngRaw === undefined) return;
+        if (valLatRaw === undefined || valLatRaw === null || valLatRaw === "" || 
+            valLngRaw === undefined || valLngRaw === null || valLngRaw === "") return;
 
         let valLat = parseFloat(String(valLatRaw).replace(',', '.'));
         let valLng = parseFloat(String(valLngRaw).replace(',', '.'));
@@ -203,29 +205,29 @@ function processEntries(data) {
 
         let finalLat, finalLng;
 
-        // DETECTAR FORMATO (UTM vs WGS84)
-        if (Math.abs(valLat) > 1000 || Math.abs(valLng) > 1000) {
-            if (typeof proj4 === 'undefined') {
-                console.error("Proj4 no cargado.");
-                return;
+            // DETECTAR FORMATO (UTM vs WGS84)
+            if (Math.abs(valLat) > 1000 || Math.abs(valLng) > 1000) {
+                if (typeof proj4 === 'undefined') {
+                    console.error("Proj4 no cargado.");
+                    return;
+                }
+                try {
+                    // Conversión de UTM 18S a WGS84
+                    // IMPORTANTE: Proj4 espera [X, Y] -> [Este, Norte]
+                    const coords = proj4(utm18S, wgs84, [valLng, valLat]);
+                    finalLng = coords[0];
+                    finalLat = coords[1];
+                } catch (e) {
+                    console.error("Error en conversión UTM:", e);
+                    return;
+                }
+            } else {
+                finalLat = valLat;
+                finalLng = valLng;
             }
-            try {
-                // Conversión de UTM 18S a WGS84
-                const coords = proj4(utm18S, wgs84, [valLat, valLng]);
-                finalLng = coords[0];
-                finalLat = coords[1];
-            } catch (e) {
-                console.error("Error en conversión UTM:", e);
-                return;
-            }
-        } else {
-            finalLat = valLat;
-            finalLng = valLng;
-        }
 
         if (!isNaN(finalLat) && !isNaN(finalLng)) {
             markerCount++;
-            const directImageUrl = transformDriveUrl(URL_Imagen_Drive);
 
             // Construir sección de imágenes (Antes y Después)
             let imagesHTML = '';
