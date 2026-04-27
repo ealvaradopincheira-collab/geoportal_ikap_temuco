@@ -168,16 +168,23 @@ function processEntries(data) {
         const keys = Object.keys(row);
         const colLat = keys.find(k => k.toLowerCase().includes('latitud'));
         const colLng = keys.find(k => k.toLowerCase().includes('longitud'));
+        const colX = keys.find(k => k.toLowerCase().includes('este'));
+        const colY = keys.find(k => k.toLowerCase().includes('norte'));
+        
         const colName = keys.find(k => k.toLowerCase().includes('nombre') || k.toLowerCase().includes('propietario'));
         const colObs = keys.find(k => k.toLowerCase().includes('observaci') || k.toLowerCase().includes('comentario'));
-        const colImg = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen') || k.toLowerCase().includes('fotograf'));
+        
+        const colImgBefore = keys.find(k => k.toLowerCase().includes('fotograf') && k.toLowerCase().includes('antes'));
+        const colImgAfter = keys.find(k => k.toLowerCase().includes('fotograf') && k.toLowerCase().includes('despues'));
+        const colImgGeneric = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen') || k.toLowerCase().includes('fotograf'));
+
         const colDate = keys.find(k => k.toLowerCase().includes('fecha') || k.toLowerCase().includes('marca temporal') || k.toLowerCase().includes('timestamp'));
         const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('trabajo'));
         const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
 
-        // Limpieza de valores
-        let valLatRaw = row[colLat];
-        let valLngRaw = row[colLng];
+        // Priorizar coordenadas: ESTE/NORTE (UTM) o LAT/LNG
+        let valLatRaw = row[colLat] || row[colY];
+        let valLngRaw = row[colLng] || row[colX];
         
         if (valLatRaw === undefined || valLngRaw === undefined) return;
 
@@ -186,7 +193,10 @@ function processEntries(data) {
 
         const Nombre = row[colName];
         const Observaciones = row[colObs];
-        const URL_Imagen_Drive = row[colImg];
+        const URL_Antes = transformDriveUrl(row[colImgBefore]);
+        const URL_Despues = transformDriveUrl(row[colImgAfter]);
+        const URL_Generica = transformDriveUrl(row[colImgGeneric]);
+        
         const Fecha = row[colDate];
         const Modificacion = row[colMod];
         const NumeroID = row[colId];
@@ -217,13 +227,34 @@ function processEntries(data) {
             markerCount++;
             const directImageUrl = transformDriveUrl(URL_Imagen_Drive);
 
+            // Construir sección de imágenes (Antes y Después)
+            let imagesHTML = '';
+            if (URL_Antes || URL_Despues) {
+                imagesHTML = `
+                    <div class="popup-images-grid">
+                        ${URL_Antes ? `
+                            <div class="img-wrapper">
+                                <span class="img-label">Antes</span>
+                                <img src="${URL_Antes}" class="popup-image" alt="Antes" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'">
+                            </div>` : ''}
+                        ${URL_Despues ? `
+                            <div class="img-wrapper">
+                                <span class="img-label">Después</span>
+                                <img src="${URL_Despues}" class="popup-image" alt="Después" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'">
+                            </div>` : ''}
+                    </div>
+                `;
+            } else if (URL_Generica) {
+                imagesHTML = `<img src="${URL_Generica}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/f97316?text=Sin+Foto'">`;
+            }
+
             const popupContent = `
                 <div class="popup-container">
                     <div class="popup-header">
                         <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
                         <h4>${Nombre || 'Señalética'}</h4>
                     </div>
-                    <img src="${directImageUrl}" class="popup-image" alt="Foto terreno" onerror="this.src='https://placehold.co/400x250/222/f97316?text=Sin+Imagen'">
+                    ${imagesHTML}
                     <div class="popup-details">
                         <div class="detail-item">
                             <strong><i data-lucide="calendar"></i> Fecha:</strong>
