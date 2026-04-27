@@ -170,7 +170,7 @@ function processEntries(data) {
         const colLng = keys.find(k => k.toLowerCase().includes('longitud'));
         const colName = keys.find(k => k.toLowerCase().includes('nombre') || k.toLowerCase().includes('propietario'));
         const colObs = keys.find(k => k.toLowerCase().includes('observaci') || k.toLowerCase().includes('comentario'));
-        const colImg = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen') || k.toLowerCase().includes('fotografía'));
+        const colImg = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen') || k.toLowerCase().includes('fotograf'));
         const colDate = keys.find(k => k.toLowerCase().includes('fecha') || k.toLowerCase().includes('marca temporal') || k.toLowerCase().includes('timestamp'));
         const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('trabajo'));
         const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
@@ -289,7 +289,8 @@ function transformDriveUrl(url) {
     const match = url.match(driveIdRegex);
 
     if (match && match[1]) {
-        return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+        // Formato más robusto para embeber imágenes de Google Drive (evita bloqueos de CORS/Cookies)
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
 
     return url; // Retorna original si no coincide
