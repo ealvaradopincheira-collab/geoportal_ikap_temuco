@@ -310,3 +310,35 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
+/* Labels para Macrosectores */
+.macrosect-label {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--primary) !important;
+    font-weight: 700 !important;
+    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000 !important;
+    font-size: 11px !important;
+    pointer-events: none !important;
+}
+
+/* Layer Control Customization */
+.leaflet-control-layers {
+    background: var(--bg-sidebar) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-light) !important;
+    border-radius: 12px !important;
+    padding: 10px !important;
+}
+
+.leaflet-control-layers-overlays label, 
+.leaflet-control-layers-base label {
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+.leaflet-control-layers-selector {
+    accent-color: var(--primary);
+    margin-right: 8px;
+}

@@ -16,12 +16,33 @@ const CONFIG = {
 // --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
+let macrosectoresLayer = L.geoJSON(null, {
+    style: function(feature) {
+        return {
+            color: "#f97316",
+            weight: 2,
+            opacity: 0.8,
+            fillColor: "#f97316",
+            fillOpacity: 0.1
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        if (feature.properties && feature.properties.macrosect) {
+            layer.bindTooltip(feature.properties.macrosect, {
+                permanent: true,
+                direction: 'center',
+                className: 'macrosect-label'
+            });
+        }
+    }
+});
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initSidebar();
     loadTerritorialData();
+    loadMacrosectores();
 });
 
 function initMap() {
@@ -49,6 +70,7 @@ function initMap() {
     };
 
     const overlayMaps = {
+        "Macrosectores": macrosectoresLayer,
         "Catastro en Terreno": markerLayer
     };
 
@@ -265,4 +287,83 @@ function showDemoData() {
         }
     ];
     processEntries(demoData);
+}
+
+/**
+ * Carga y visualiza el shapefile de Macrosectores
+ */
+async function loadMacrosectores() {
+    console.log("Cargando Macrosectores...");
+    
+    try {
+        // Cargar archivos .shp y .dbf
+        const shpBuffer = await fetch('Macrosectores/MACROSECTORES.shp').then(r => {
+            if (!r.ok) throw new Error("No se pudo cargar el archivo .shp");
+            return r.arrayBuffer();
+        });
+        const dbfBuffer = await fetch('Macrosectores/MACROSECTORES.dbf').then(r => {
+            if (!r.ok) throw new Error("No se pudo cargar el archivo .dbf");
+            return r.arrayBuffer();
+        });
+
+        // Parsear y combinar
+        const geojson = shp.combine([shp.parseShp(shpBuffer), shp.parseDbf(dbfBuffer)]);
+        
+        // Detectar si necesita proyección (UTM Zona 18S)
+        // Tomamos el primer punto de la primera geometría
+        const firstFeature = geojson.features[0];
+        if (firstFeature && firstFeature.geometry) {
+            let coords = firstFeature.geometry.coordinates[0];
+            if (Array.isArray(coords[0])) coords = coords[0]; // Manejar MultiPolygon
+            
+            // Si la coordenada X es > 180, asumimos que es UTM
+            if (Math.abs(coords[0]) > 180) {
+                console.log("Detectadas coordenadas UTM. Proyectando a WGS84...");
+                const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
+                const wgs84 = "EPSG:4326";
+                
+                geojson.features.forEach(feature => {
+                    projectGeometry(feature.geometry, utm18S, wgs84);
+                });
+            }
+        }
+
+        macrosectoresLayer.addData(geojson);
+        macrosectoresLayer.addTo(map);
+        console.log("Macrosectores cargados exitosamente.");
+
+    } catch (err) {
+        console.error("Error al cargar Macrosectores:", err);
+    }
+}
+
+/**
+ * Función auxiliar para proyectar geometrías recursivamente
+ */
+function projectGeometry(geometry, from, to) {
+    if (geometry.type === 'Point') {
+        const coords = proj4(from, to, geometry.coordinates);
+        geometry.coordinates = [coords[0], coords[1]];
+    } else if (geometry.type === 'LineString' || geometry.type === 'MultiPoint') {
+        geometry.coordinates = geometry.coordinates.map(c => {
+            const coords = proj4(from, to, c);
+            return [coords[0], coords[1]];
+        });
+    } else if (geometry.type === 'Polygon' || geometry.type === 'MultiLineString') {
+        geometry.coordinates = geometry.coordinates.map(ring => {
+            return ring.map(c => {
+                const coords = proj4(from, to, c);
+                return [coords[0], coords[1]];
+            });
+        });
+    } else if (geometry.type === 'MultiPolygon') {
+        geometry.coordinates = geometry.coordinates.map(poly => {
+            return poly.map(ring => {
+                return ring.map(c => {
+                    const coords = proj4(from, to, c);
+                    return [coords[0], coords[1]];
+                });
+            });
+        });
+    }
 }
