@@ -204,6 +204,7 @@ function processEntries(data) {
         const NumeroID = row[colId];
 
         let finalLat, finalLng;
+        let displayUTM = "";
 
             // DETECTAR FORMATO (UTM vs WGS84)
             if (Math.abs(valLat) > 1000 || Math.abs(valLng) > 1000) {
@@ -211,6 +212,7 @@ function processEntries(data) {
                     console.error("Proj4 no cargado.");
                     return;
                 }
+                displayUTM = `${valLng.toFixed(0)} E, ${valLat.toFixed(0)} N`;
                 try {
                     // Conversión de UTM 18S a WGS84
                     // IMPORTANTE: Proj4 espera [X, Y] -> [Este, Norte]
@@ -224,6 +226,17 @@ function processEntries(data) {
             } else {
                 finalLat = valLat;
                 finalLng = valLng;
+                // Convertir a UTM para mostrar
+                if (typeof proj4 !== 'undefined') {
+                    try {
+                        const utmCoords = proj4(wgs84, utm18S, [valLng, valLat]);
+                        displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
+                    } catch (e) {
+                        displayUTM = `${valLat.toFixed(6)}, ${valLng.toFixed(6)}`;
+                    }
+                } else {
+                    displayUTM = `${valLat.toFixed(6)}, ${valLng.toFixed(6)}`;
+                }
             }
 
         if (!isNaN(finalLat) && !isNaN(finalLng)) {
@@ -237,17 +250,17 @@ function processEntries(data) {
                         ${URL_Antes ? `
                             <div class="img-wrapper">
                                 <span class="img-label">Antes</span>
-                                <img src="${URL_Antes}" class="popup-image" alt="Antes" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'">
+                                <img src="${URL_Antes}" class="popup-image" alt="Antes" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)">
                             </div>` : ''}
                         ${URL_Despues ? `
                             <div class="img-wrapper">
                                 <span class="img-label">Después</span>
-                                <img src="${URL_Despues}" class="popup-image" alt="Después" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'">
+                                <img src="${URL_Despues}" class="popup-image" alt="Después" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)">
                             </div>` : ''}
                     </div>
                 `;
             } else if (URL_Generica) {
-                imagesHTML = `<img src="${URL_Generica}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/f97316?text=Sin+Foto'">`;
+                imagesHTML = `<img src="${URL_Generica}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)">`;
             }
 
             const popupContent = `
@@ -271,7 +284,7 @@ function processEntries(data) {
                             <p>${Observaciones || '-'}</p>
                         </div>
                         <div class="coord-badge">
-                            <i data-lucide="map-pin"></i> ${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}
+                            <i data-lucide="map-pin"></i> UTM ${displayUTM}
                         </div>
                     </div>
                 </div>
@@ -429,4 +442,24 @@ function projectGeometry(geometry, from, to) {
             });
         });
     }
+}
+
+/**
+ * Abre una imagen en un modal de pantalla completa
+ */
+function openImageModal(src) {
+    if (src.includes('placehold.co')) return; // No hacer zoom en el placeholder
+    
+    let modal = document.getElementById('imageModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'imageModal';
+        modal.className = 'image-modal';
+        modal.innerHTML = `<img src="" id="imageModalImg" alt="Zoomed Image">`;
+        modal.onclick = () => modal.classList.remove('active');
+        document.body.appendChild(modal);
+    }
+    
+    document.getElementById('imageModalImg').src = src;
+    modal.classList.add('active');
 }
