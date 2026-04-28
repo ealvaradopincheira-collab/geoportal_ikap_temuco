@@ -6,7 +6,7 @@
     --text-light: #f8fafc;
     --text-muted: #94a3b8;
     --border-color: rgba(249, 115, 22, 0.2);
-    --header-height: 70px;
+    --header-height: 85px;
     --sidebar-width: 320px;
     --sidebar-collapsed-width: 0px;
     --transition-speed: 0.3s;
@@ -46,6 +46,12 @@ body {
     align-items: center;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
 .logo-area {
     display: flex;
     align-items: center;
@@ -53,7 +59,7 @@ body {
 }
 
 .logo-img {
-    height: 45px;
+    height: 65px;
     width: auto;
     object-fit: contain;
 }
@@ -82,6 +88,19 @@ body {
 
 .logo-area h1 span {
     color: var(--primary);
+}
+
+.title-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.contract-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+    font-weight: 400;
 }
 
 .status-indicator {
