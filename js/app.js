@@ -40,43 +40,46 @@ let catastroLayer = L.geoJSON(null, {
         if (feature.properties) {
             const props = feature.properties;
             
-            const NumeroID = props.id || props['codigo de'];
-            const Nombre = props.tipo || props.señaletic;
-            const Fecha = props.fecha;
-            const Estado = props.estado;
-            const Observaciones = props.observacia;
+            // Mapeo robusto de propiedades (maneja posibles variaciones de nombre)
+            const NumeroID = props.id || props['codigo de'] || props['id_0'] || 'S/N';
+            const Nombre = props.señaletic || props.tipo || props.Nombre || 'Señalética';
+            const Fecha = props.fecha || props.Fecha || 'No registrada';
+            const Estado = props.estado || props.Estado || 'N/A';
+            const Observaciones = props.observacia || props.Observaciones || '-';
+            const Direccion = props.dirección || props.direccion || '';
 
             const popupContent = `
                 <div class="popup-container catastro-popup">
                     <div class="popup-header">
-                        <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
+                        <span class="id-badge">Nº ${NumeroID}</span>
                         <div style="display: flex; flex-direction: column;">
-                            <h4>${Nombre || 'Señalética Base'}</h4>
-                            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Catastro Existente</span>
+                            <h4>${Nombre}</h4>
+                            <span style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">Catastro Existente</span>
                         </div>
                     </div>
                     <div class="popup-details">
                         <div class="detail-item">
                             <strong><i data-lucide="calendar"></i> Fecha:</strong>
-                            <span>${Fecha || 'No registrada'}</span>
+                            <span>${Fecha}</span>
                         </div>
                         <div class="detail-item">
                             <strong><i data-lucide="activity"></i> Estado:</strong>
-                            <span>${Estado || 'N/A'}</span>
+                            <span>${Estado}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i data-lucide="map-pin"></i> Dirección:</strong>
+                            <span>${Direccion}</span>
                         </div>
                         <div class="detail-item">
                             <strong><i data-lucide="info"></i> Observaciones:</strong>
-                            <p>${Observaciones || '-'}</p>
+                            <p>${Observaciones}</p>
                         </div>
                     </div>
                 </div>
             `;
             
             layer.bindPopup(popupContent, { maxWidth: 300, className: 'custom-popup' });
-            
-            layer.on('popupopen', () => {
-                lucide.createIcons();
-            });
+            layer.on('popupopen', () => lucide.createIcons());
         }
     }
 });
