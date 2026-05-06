@@ -435,3 +435,55 @@ body {
 .popup-container {
     animation: fadeIn 0.3s ease-out;
 }
+
+/* Catastro Popup Customization */
+.catastro-popup .popup-header {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.catastro-popup .status-tag {
+    background: #3b82f6;
+}
+
+.catastro-popup .detail-item i, 
+.catastro-popup .detail-item svg {
+    color: #3b82f6 !important;
+}
+
+/* Notification Banner */
+.notification-banner {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-glass);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    font-size: 0.85rem;
+}
+
+.notification-banner.active {
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification-banner.error {
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.notification-banner.error i {
+    color: #ef4444;
+}
+
+.custom-div-icon {
+    background: none !important;
+    border: none !important;
+}

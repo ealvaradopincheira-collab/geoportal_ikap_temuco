@@ -9,11 +9,28 @@ const CONFIG = {
     INITIAL_ZOOM: 14,
     SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTM9vKw4CQimv9A7xagyzecSKk9P-_4m7qJ8ykCmP3p9a8CrbMp1Rls_pEoxXFV0gXOpI9AOlMSpygA/pub?output=csv', 
     REFRESH_INTERVAL: 0 
+    // Intentar detectar si estamos en GitHub o Local
+    IS_GITHUB: window.location.hostname.includes('github.io'),
+    IS_LOCAL: window.location.protocol === 'file:'
 };
 
 // --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
+
+// --- SISTEMA DE AVISOS ---
+function showNotification(msg, type = 'info') {
+    const banner = document.createElement('div');
+    banner.className = `notification-banner ${type}`;
+    banner.innerHTML = `<i data-lucide="${type === 'error' ? 'alert-circle' : 'info'}"></i> <span>${msg}</span>`;
+    document.body.appendChild(banner);
+    lucide.createIcons();
+    setTimeout(() => banner.classList.add('active'), 100);
+    setTimeout(() => {
+        banner.classList.remove('active');
+        setTimeout(() => banner.remove(), 500);
+    }, 5000);
+}
 
 // --- CAPA CATASTRO (BLUE HALOS) ---
 let catastroLayer = L.geoJSON(null, {
@@ -115,6 +132,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTerritorialData();
     loadMacrosectores();
     loadCatastro();
+
+    if (CONFIG.IS_LOCAL) {
+        showNotification("Modo Local detectado: El catastro y macrosectores podrían no cargar por restricciones del navegador. Usa un servidor local o GitHub Pages.", "error");
+    }
 });
 
 function initMap() {
