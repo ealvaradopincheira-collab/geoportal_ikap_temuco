@@ -7,56 +7,39 @@
 const CONFIG = {
     MAP_CENTER: [-38.7359, -72.5904],
     INITIAL_ZOOM: 14,
+    // URL del Google Sheet publicado como CSV. 
+    // Para probar, se puede usar un archivo local o una URL de ejemplo.
     SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTM9vKw4CQimv9A7xagyzecSKk9P-_4m7qJ8ykCmP3p9a8CrbMp1Rls_pEoxXFV0gXOpI9AOlMSpygA/pub?output=csv', 
-    REFRESH_INTERVAL: 0,
-    // Intentar detectar si estamos en GitHub o Local
-    IS_GITHUB: window.location.hostname.includes('github.io'),
-    IS_LOCAL: window.location.protocol === 'file:'
+    REFRESH_INTERVAL: 0 // set to > 0 if auto-refresh is desired (ms)
 };
 
 // --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
-
-// --- SISTEMA DE AVISOS ---
-function showNotification(msg, type = 'info') {
-    const banner = document.createElement('div');
-    banner.className = `notification-banner ${type}`;
-    banner.innerHTML = `<i data-lucide="${type === 'error' ? 'alert-circle' : 'info'}"></i> <span>${msg}</span>`;
-    document.body.appendChild(banner);
-    lucide.createIcons();
-    setTimeout(() => banner.classList.add('active'), 100);
-    setTimeout(() => {
-        banner.classList.remove('active');
-        setTimeout(() => banner.remove(), 500);
-    }, 5000);
-}
-
-// --- CAPA CATASTRO (BLUE HALOS) ---
 let catastroLayer = L.geoJSON(null, {
-    pointToLayer: function (feature, latlng) {
-        // Efecto de halo azul translúcido con núcleo sólido
-        const icon = L.divIcon({
-            className: 'custom-div-icon',
-            html: '<div class="catastro-marker-halo"><div class="catastro-marker-core"></div></div>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-        });
-        return L.marker(latlng, { icon: icon });
-    },
     style: function(feature) {
-        // Para polígonos (si los hay)
         return {
-            color: "#3b82f6",
+            color: "#3b82f6", // Azul para diferenciar del color naranja
             weight: 2,
-            opacity: 0.6,
+            opacity: 0.8,
             fillColor: "#3b82f6",
-            fillOpacity: 0.1
+            fillOpacity: 0.2
         };
+    },
+    pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "#3b82f6",
+            color: "#fff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        });
     },
     onEachFeature: function(feature, layer) {
         if (feature.properties) {
             const props = feature.properties;
+            
             const NumeroID = props.id || props['codigo de'];
             const Nombre = props.tipo || props.señaletic;
             const Fecha = props.fecha;
@@ -66,52 +49,46 @@ let catastroLayer = L.geoJSON(null, {
             const popupContent = `
                 <div class="popup-container catastro-popup">
                     <div class="popup-header">
-                        <span class="status-tag">Existente</span>
-                        <div class="id-sub">ID: ${NumeroID || 'S/N'}</div>
-                        <h4>${Nombre || 'Señalética Base'}</h4>
+                        <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
+                        <div style="display: flex; flex-direction: column;">
+                            <h4>${Nombre || 'Señalética Base'}</h4>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Catastro Existente</span>
+                        </div>
                     </div>
                     <div class="popup-details">
                         <div class="detail-item">
-                            <i data-lucide="calendar"></i>
-                            <div class="detail-content">
-                                <span class="detail-label">Fecha</span>
-                                <span class="detail-value">${Fecha || 'No registrada'}</span>
-                            </div>
+                            <strong><i data-lucide="calendar"></i> Fecha:</strong>
+                            <span>${Fecha || 'No registrada'}</span>
                         </div>
                         <div class="detail-item">
-                            <i data-lucide="activity"></i>
-                            <div class="detail-content">
-                                <span class="detail-label">Estado</span>
-                                <span class="detail-value">${Estado || 'N/A'}</span>
-                            </div>
+                            <strong><i data-lucide="activity"></i> Estado:</strong>
+                            <span>${Estado || 'N/A'}</span>
                         </div>
                         <div class="detail-item">
-                            <i data-lucide="info"></i>
-                            <div class="detail-content">
-                                <span class="detail-label">Observaciones</span>
-                                <span class="detail-value">${Observaciones || '-'}</span>
-                            </div>
+                            <strong><i data-lucide="info"></i> Observaciones:</strong>
+                            <p>${Observaciones || '-'}</p>
                         </div>
                     </div>
                 </div>
             `;
             
             layer.bindPopup(popupContent, { maxWidth: 300, className: 'custom-popup' });
-            layer.on('popupopen', () => lucide.createIcons());
+            
+            layer.on('popupopen', () => {
+                lucide.createIcons();
+            });
         }
     }
 });
 
-// --- CAPA MACROSECTORES ---
 let macrosectoresLayer = L.geoJSON(null, {
     style: function(feature) {
         return {
             color: "#f97316",
-            weight: 1.5,
-            opacity: 0.4,
+            weight: 2,
+            opacity: 0.8,
             fillColor: "#f97316",
-            fillOpacity: 0.05,
-            dashArray: '5, 5'
+            fillOpacity: 0.1
         };
     },
     onEachFeature: function(feature, layer) {
@@ -132,58 +109,42 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTerritorialData();
     loadMacrosectores();
     loadCatastro();
-
-    if (CONFIG.IS_LOCAL) {
-        showNotification("Modo Local detectado: El catastro y macrosectores podrían no cargar por restricciones del navegador. Usa un servidor local o GitHub Pages.", "error");
-    }
 });
 
 function initMap() {
+    // Mapas Base
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap'
     });
 
     const esriWorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri'
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
     });
 
+    // Inicializar Mapa
     map = L.map('map', {
         center: CONFIG.MAP_CENTER,
         zoom: CONFIG.INITIAL_ZOOM,
-        layers: [esriWorldImagery],
-        zoomControl: false // Lo añadiremos manualmente a la derecha
+        layers: [esriWorldImagery] // Default layer
     });
 
-    L.control.zoom({ position: 'topright' }).addTo(map);
-
+    // Control de Capas
     const baseMaps = {
-        "Satelital": esriWorldImagery,
-        "Calles": osm
+        "Terreno (Esri)": esriWorldImagery,
+        "Calles (OSM)": osm
     };
 
     const overlayMaps = {
         "Macrosectores": macrosectoresLayer,
         "Catastro Base": catastroLayer,
-        "Levantamiento Terreno": markerLayer
+        "Catastro en Terreno": markerLayer
     };
 
-    // Crear el control de capas y moverlo al panel lateral
-    const layerControl = L.control.layers(baseMaps, overlayMaps, { collapsed: false });
-    layerControl.addTo(map);
+    L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
     
-    // Mover el contenedor del control al panel lateral
-    const layerControlContainer = document.getElementById('layer-control-container');
-    if (layerControlContainer) {
-        layerControlContainer.appendChild(layerControl.getContainer());
-    }
-    
+    // Add marker layer to map by default
     markerLayer.addTo(map);
-
-    // Forzar el renderizado correcto del mapa
-    setTimeout(() => {
-        map.invalidateSize();
-    }, 500);
 }
 
 function initSidebar() {
@@ -193,43 +154,84 @@ function initSidebar() {
 
     toggleBtn.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
-        toggleIcon.setAttribute('data-lucide', sidebar.classList.contains('collapsed') ? 'chevron-right' : 'chevron-left');
+        
+        // Actualizar icono (Lucide)
+        if (sidebar.classList.contains('collapsed')) {
+            toggleIcon.setAttribute('data-lucide', 'chevron-right');
+        } else {
+            toggleIcon.setAttribute('data-lucide', 'chevron-left');
+        }
         lucide.createIcons();
-        setTimeout(() => map.invalidateSize(), 400);
+
+        // Reajustar tamaño del mapa después de la animación
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 300);
     });
 }
 
+/**
+ * Función principal de carga de datos
+ */
 async function loadTerritorialData() {
+    console.log("Iniciando solicitud de datos...");
+
+    // Añadir un cache-buster para evitar versiones obsoletas de Google Sheets
     const timestamp = new Date().getTime();
     const sheetUrl = `${CONFIG.SHEET_CSV_URL}&t=${timestamp}`;
+    
+    // URL Final (con Proxy si es local)
     let finalUrl = sheetUrl;
     if (window.location.protocol === 'file:') {
+        console.log("Acceso LOCAL detectado. Usando Proxy: corsproxy.io");
         finalUrl = `https://corsproxy.io/?${encodeURIComponent(sheetUrl)}`;
     }
 
+    console.log("URL de descarga:", finalUrl);
+
     try {
         const response = await fetch(finalUrl);
-        if (!response.ok) throw new Error("Network response was not ok");
+        if (!response.ok) throw new Error(`El servidor respondió con código ${response.status}`);
+        
         const csvText = await response.text();
+        console.log("Contenido recibido. Primeros caracteres:", csvText.substring(0, 80));
+
+        if (csvText.includes("<!DOCTYPE html>") || csvText.includes("<html")) {
+            throw new Error("El archivo recibido es HTML (posible error de permisos), no un CSV.");
+        }
 
         Papa.parse(csvText, {
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
-            complete: (results) => processEntries(results.data)
+            complete: function(results) {
+                console.log(`Parseo completado. Filas encontradas: ${results.data.length}`);
+                processEntries(results.data);
+            }
         });
+
     } catch (err) {
-        console.error("Fallo de carga:", err);
+        console.error("FALLO CRÍTICO DE CARGA:", err);
+        console.log("Cargando datos de respaldo (Demo)...");
         showDemoData();
     }
 }
 
+/**
+ * Procesa cada fila del CSV para crear marcadores
+ */
 function processEntries(data) {
+    // Limpiar marcadores existentes
     markerLayer.clearLayers();
+
+    // Definir proyección UTM Zona 18 Sur (Chile - Temuco)
     const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
     const wgs84 = "WGS84";
 
-    data.forEach((row) => {
+    let markerCount = 0;
+
+    data.forEach((row, index) => {
+        // Mapeo dinámico de columnas (busca palabras clave en los encabezados)
         const keys = Object.keys(row);
         const colLat = keys.find(k => k.toLowerCase().includes('latitud'));
         const colLng = keys.find(k => k.toLowerCase().includes('longitud'));
@@ -241,148 +243,311 @@ function processEntries(data) {
         
         const colImgBefore = keys.find(k => k.toLowerCase().includes('fotograf') && k.toLowerCase().includes('antes'));
         const colImgAfter = keys.find(k => k.toLowerCase().includes('fotograf') && k.toLowerCase().includes('despues'));
-        const colImgGeneric = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen'));
+        const colImgGeneric = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen') || k.toLowerCase().includes('fotograf'));
 
-        const colDate = keys.find(k => k.toLowerCase().includes('fecha') || k.toLowerCase().includes('marca temporal'));
-        const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo'));
-        const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('código'));
+        const colDate = keys.find(k => k.toLowerCase().includes('fecha') || k.toLowerCase().includes('marca temporal') || k.toLowerCase().includes('timestamp'));
+        const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('trabajo'));
+        const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
 
+        // Priorizar coordenadas: ESTE/NORTE (UTM) o LAT/LNG
+        // Buscamos un valor que no esté vacío
         let valLatRaw = (row[colLat] && String(row[colLat]).trim() !== "") ? row[colLat] : row[colY];
         let valLngRaw = (row[colLng] && String(row[colLng]).trim() !== "") ? row[colLng] : row[colX];
         
-        if (!valLatRaw || !valLngRaw) return;
+        if (valLatRaw === undefined || valLatRaw === null || valLatRaw === "" || 
+            valLngRaw === undefined || valLngRaw === null || valLngRaw === "") return;
 
         let valLat = parseFloat(String(valLatRaw).replace(',', '.'));
         let valLng = parseFloat(String(valLngRaw).replace(',', '.'));
 
-        let finalLat, finalLng, displayUTM = "";
+        const Nombre = row[colName];
+        const Observaciones = row[colObs];
+        const URL_Antes = transformDriveUrl(row[colImgBefore]);
+        const URL_Despues = transformDriveUrl(row[colImgAfter]);
+        const URL_Generica = transformDriveUrl(row[colImgGeneric]);
+        
+        const Fecha = row[colDate];
+        const Modificacion = row[colMod];
+        const NumeroID = row[colId];
 
-        if (Math.abs(valLat) > 1000) {
-            displayUTM = `${valLng.toFixed(0)} E, ${valLat.toFixed(0)} N`;
-            const coords = proj4(utm18S, wgs84, [valLng, valLat]);
-            finalLng = coords[0]; finalLat = coords[1];
-        } else {
-            finalLat = valLat; finalLng = valLng;
-            try {
-                const utmCoords = proj4(wgs84, utm18S, [valLng, valLat]);
-                displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
-            } catch (e) { displayUTM = `${valLat.toFixed(6)}, ${valLng.toFixed(6)}`; }
-        }
+        let finalLat, finalLng;
+        let displayUTM = "";
+
+            // DETECTAR FORMATO (UTM vs WGS84)
+            if (Math.abs(valLat) > 1000 || Math.abs(valLng) > 1000) {
+                if (typeof proj4 === 'undefined') {
+                    console.error("Proj4 no cargado.");
+                    return;
+                }
+                displayUTM = `${valLng.toFixed(0)} E, ${valLat.toFixed(0)} N`;
+                try {
+                    // Conversión de UTM 18S a WGS84
+                    // IMPORTANTE: Proj4 espera [X, Y] -> [Este, Norte]
+                    const coords = proj4(utm18S, wgs84, [valLng, valLat]);
+                    finalLng = coords[0];
+                    finalLat = coords[1];
+                } catch (e) {
+                    console.error("Error en conversión UTM:", e);
+                    return;
+                }
+            } else {
+                finalLat = valLat;
+                finalLng = valLng;
+                // Convertir a UTM para mostrar
+                if (typeof proj4 !== 'undefined') {
+                    try {
+                        const utmCoords = proj4(wgs84, utm18S, [valLng, valLat]);
+                        displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
+                    } catch (e) {
+                        displayUTM = `${valLat.toFixed(6)}, ${valLng.toFixed(6)}`;
+                    }
+                } else {
+                    displayUTM = `${valLat.toFixed(6)}, ${valLng.toFixed(6)}`;
+                }
+            }
 
         if (!isNaN(finalLat) && !isNaN(finalLng)) {
-            const URL_Antes = transformDriveUrl(row[colImgBefore]);
-            const URL_Despues = transformDriveUrl(row[colImgAfter]);
-            const URL_Generica = transformDriveUrl(row[colImgGeneric]);
+            markerCount++;
 
+            // Construir sección de imágenes (Antes y Después)
             let imagesHTML = '';
             if (URL_Antes || URL_Despues) {
                 imagesHTML = `
                     <div class="popup-images-grid">
-                        ${URL_Antes ? `<div class="img-wrapper"><span class="img-label">Antes</span><img src="${URL_Antes}" class="popup-image" onclick="openImageModal(this.src)"></div>` : ''}
-                        ${URL_Despues ? `<div class="img-wrapper"><span class="img-label">Después</span><img src="${URL_Despues}" class="popup-image" onclick="openImageModal(this.src)"></div>` : ''}
+                        ${URL_Antes ? `
+                            <div class="img-wrapper">
+                                <span class="img-label">Antes</span>
+                                <img src="${URL_Antes}" class="popup-image" alt="Antes" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)">
+                            </div>` : ''}
+                        ${URL_Despues ? `
+                            <div class="img-wrapper">
+                                <span class="img-label">Después</span>
+                                <img src="${URL_Despues}" class="popup-image" alt="Después" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)">
+                            </div>` : ''}
                     </div>
                 `;
             } else if (URL_Generica) {
-                imagesHTML = `<div class="img-wrapper" style="height: 200px;"><img src="${URL_Generica}" class="popup-image" onclick="openImageModal(this.src)"></div>`;
+                imagesHTML = `<img src="${URL_Generica}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)">`;
             }
 
             const popupContent = `
                 <div class="popup-container">
                     <div class="popup-header">
-                        <span class="status-tag">Nuevo Registro</span>
-                        <div class="id-sub">ID: ${row[colId] || 'S/N'}</div>
-                        <h4>${row[colName] || 'Señalética'}</h4>
+                        <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
+                        <h4>${Nombre || 'Señalética'}</h4>
                     </div>
                     ${imagesHTML}
                     <div class="popup-details">
                         <div class="detail-item">
-                            <i data-lucide="calendar"></i>
-                            <div class="detail-content">
-                                <span class="detail-label">Fecha</span>
-                                <span class="detail-value">${row[colDate] || 'No registrada'}</span>
-                            </div>
+                            <strong><i data-lucide="calendar"></i> Fecha:</strong>
+                            <span>${Fecha || 'No registrada'}</span>
                         </div>
                         <div class="detail-item">
-                            <i data-lucide="wrench"></i>
-                            <div class="detail-content">
-                                <span class="detail-label">Modificación</span>
-                                <span class="detail-value">${row[colMod] || 'N/A'}</span>
-                            </div>
+                            <strong><i data-lucide="wrench"></i> Modificación:</strong>
+                            <span>${Modificacion || 'N/A'}</span>
                         </div>
                         <div class="detail-item">
-                            <i data-lucide="info"></i>
-                            <div class="detail-content">
-                                <span class="detail-label">Observaciones</span>
-                                <span class="detail-value">${row[colObs] || '-'}</span>
-                            </div>
+                            <strong><i data-lucide="info"></i> Observaciones:</strong>
+                            <p>${Observaciones || '-'}</p>
                         </div>
                         <div class="coord-badge">
-                            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> UTM ${displayUTM}
+                            <i data-lucide="map-pin"></i> UTM ${displayUTM}
                         </div>
                     </div>
                 </div>
             `;
 
-            // Puntos de Terreno (Naranja): Vibrantes, más pequeños, sombra sutil
             const marker = L.circleMarker([finalLat, finalLng], {
-                radius: 6,
+                radius: 8,
                 fillColor: "#f97316",
-                color: "#ffffff",
-                weight: 1.5,
+                color: "#fff",
+                weight: 2,
                 opacity: 1,
-                fillOpacity: 1,
-                className: 'terreno-marker'
-            }).bindPopup(popupContent, { maxWidth: 300, className: 'custom-popup' });
+                fillOpacity: 0.8
+            }).bindPopup(popupContent, {
+                maxWidth: 300,
+                className: 'custom-popup'
+            });
 
-            marker.on('popupopen', () => lucide.createIcons());
+            marker.on('popupopen', () => {
+                lucide.createIcons();
+            });
+
             markerLayer.addLayer(marker);
         }
     });
 
+    console.log(`Marcadores creados: ${markerCount}`);
+
+    if (markerCount === 0 && data.length > 0) {
+        alert("Atención: Se recibieron datos de la planilla, pero no se pudieron procesar las coordenadas. Revisa el formato de Latitud/Longitud.");
+    }
+
+    // Si hay datos, ajustar la vista (opcional)
     if (data.length > 0 && !CONFIG.SHEET_CSV_URL.includes('PLACEHOLDER')) {
         const group = new L.featureGroup(markerLayer.getLayers());
-        if (group.getLayers().length > 0) map.fitBounds(group.getBounds().pad(0.2));
+        map.fitBounds(group.getBounds().pad(0.1));
     }
 }
 
-async function loadMacrosectores() {
-    try {
-        const shpBuffer = await fetch('Macrosectores/MACROSECTORES.shp').then(r => r.arrayBuffer());
-        const dbfBuffer = await fetch('Macrosectores/MACROSECTORES.dbf').then(r => r.arrayBuffer());
-        const geojson = shp.combine([shp.parseShp(shpBuffer), shp.parseDbf(dbfBuffer)]);
-        macrosectoresLayer.addData(geojson).addTo(map);
-    } catch (err) { console.error("Error Macrosectores:", err); }
-}
-
-async function loadCatastro() {
-    try {
-        const response = await fetch('Macrosectores/CATASTRO.geojson');
-        const geojson = await response.json();
-        catastroLayer.addData(geojson).addTo(map);
-    } catch (err) { console.error("Error Catastro:", err); }
-}
-
+/**
+ * Transforma: https://drive.google.com/open?id=ID_DEL_ARCHIVO
+ * A: https://drive.google.com/uc?export=view&id=ID_DEL_ARCHIVO
+ */
 function transformDriveUrl(url) {
     if (!url) return '';
-    const match = url.match(/(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/);
-    return match ? `https://lh3.googleusercontent.com/d/${match[1]}` : url;
+    
+    // Regex para capturar el ID de diferentes formatos de URL de Drive
+    const driveIdRegex = /(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/;
+    const match = url.match(driveIdRegex);
+
+    if (match && match[1]) {
+        // Formato más robusto para embeber imágenes de Google Drive (evita bloqueos de CORS/Cookies)
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+
+    return url; // Retorna original si no coincide
 }
 
+/**
+ * Función de respaldo (Demo) en caso de que no haya CSV conectado
+ */
+function showDemoData() {
+    const demoData = [
+        {
+            Latitud: -38.7359,
+            Longitud: -72.5904,
+            Nombre_Propietario: "Predio Central Temuco",
+            Observaciones: "Inspección de rutina realizada. Todo en orden.",
+            URL_Imagen_Drive: "https://drive.google.com/open?id=1WvX8BfS_E0y_u1uX6_k-HkXpC-m8u-Ym"
+        },
+        {
+            Latitud: -38.7400,
+            Longitud: -72.6000,
+            Nombre_Propietario: "Sector Av. Alemania",
+            Observaciones: "Necesita mantenimiento de cercado perimetral.",
+            URL_Imagen_Drive: "https://drive.google.com/open?id=1Z-0I4Z_S0y_u1uX6_k-HkXpC-m8u-Z1"
+        }
+    ];
+    processEntries(demoData);
+}
+
+/**
+ * Carga y visualiza el shapefile de Macrosectores
+ */
+async function loadMacrosectores() {
+    console.log("Cargando Macrosectores...");
+    
+    try {
+        // Cargar archivos .shp y .dbf
+        const shpBuffer = await fetch('Macrosectores/MACROSECTORES.shp').then(r => {
+            if (!r.ok) throw new Error("No se pudo cargar el archivo .shp");
+            return r.arrayBuffer();
+        });
+        const dbfBuffer = await fetch('Macrosectores/MACROSECTORES.dbf').then(r => {
+            if (!r.ok) throw new Error("No se pudo cargar el archivo .dbf");
+            return r.arrayBuffer();
+        });
+
+        // Parsear y combinar
+        const geojson = shp.combine([shp.parseShp(shpBuffer), shp.parseDbf(dbfBuffer)]);
+        
+        // Detectar si necesita proyección (UTM Zona 18S)
+        // Tomamos el primer punto de la primera geometría
+        const firstFeature = geojson.features[0];
+        if (firstFeature && firstFeature.geometry) {
+            let coords = firstFeature.geometry.coordinates[0];
+            if (Array.isArray(coords[0])) coords = coords[0]; // Manejar MultiPolygon
+            
+            // Si la coordenada X es > 180, asumimos que es UTM
+            if (Math.abs(coords[0]) > 180) {
+                console.log("Detectadas coordenadas UTM. Proyectando a WGS84...");
+                const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
+                const wgs84 = "EPSG:4326";
+                
+                geojson.features.forEach(feature => {
+                    projectGeometry(feature.geometry, utm18S, wgs84);
+                });
+            }
+        }
+
+        macrosectoresLayer.addData(geojson);
+        macrosectoresLayer.addTo(map);
+        console.log("Macrosectores cargados exitosamente.");
+
+    } catch (err) {
+        console.error("Error al cargar Macrosectores:", err);
+    }
+}
+
+/**
+ * Función auxiliar para proyectar geometrías recursivamente
+ */
+function projectGeometry(geometry, from, to) {
+    if (geometry.type === 'Point') {
+        const coords = proj4(from, to, geometry.coordinates);
+        geometry.coordinates = [coords[0], coords[1]];
+    } else if (geometry.type === 'LineString' || geometry.type === 'MultiPoint') {
+        geometry.coordinates = geometry.coordinates.map(c => {
+            const coords = proj4(from, to, c);
+            return [coords[0], coords[1]];
+        });
+    } else if (geometry.type === 'Polygon' || geometry.type === 'MultiLineString') {
+        geometry.coordinates = geometry.coordinates.map(ring => {
+            return ring.map(c => {
+                const coords = proj4(from, to, c);
+                return [coords[0], coords[1]];
+            });
+        });
+    } else if (geometry.type === 'MultiPolygon') {
+        geometry.coordinates = geometry.coordinates.map(poly => {
+            return poly.map(ring => {
+                return ring.map(c => {
+                    const coords = proj4(from, to, c);
+                    return [coords[0], coords[1]];
+                });
+            });
+        });
+    }
+}
+
+/**
+ * Carga y visualiza el GeoJSON de Catastro Pre-existente
+ */
+async function loadCatastro() {
+    console.log("Cargando Catastro Pre-existente (GeoJSON)...");
+    
+    try {
+        const response = await fetch('Macrosectores/CATASTRO.geojson');
+        if (!response.ok) throw new Error("No se pudo cargar el archivo .geojson");
+        
+        const geojson = await response.json();
+        
+        catastroLayer.addData(geojson);
+        catastroLayer.addTo(map);
+        console.log("Catastro Pre-existente cargado exitosamente.");
+
+    } catch (err) {
+        console.error("Error al cargar Catastro Pre-existente:", err);
+    }
+}
+
+/**
+ * Abre una imagen en un modal de pantalla completa
+ */
 function openImageModal(src) {
+    if (src.includes('placehold.co')) return; // No hacer zoom en el placeholder
+    
     let modal = document.getElementById('imageModal');
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'imageModal';
         modal.className = 'image-modal';
-        modal.innerHTML = `<img src="" id="imageModalImg">`;
+        modal.innerHTML = `<img src="" id="imageModalImg" alt="Zoomed Image">`;
         modal.onclick = () => modal.classList.remove('active');
         document.body.appendChild(modal);
     }
+    
     document.getElementById('imageModalImg').src = src;
     modal.classList.add('active');
-}
-
-function showDemoData() {
-    const demoData = [{ Latitud: -38.7359, Longitud: -72.5904, Nombre_Propietario: "Demo", Observaciones: "Sistema activo" }];
-    processEntries(demoData);
 }
