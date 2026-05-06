@@ -8,7 +8,7 @@ const CONFIG = {
     MAP_CENTER: [-38.7359, -72.5904],
     INITIAL_ZOOM: 14,
     SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTM9vKw4CQimv9A7xagyzecSKk9P-_4m7qJ8ykCmP3p9a8CrbMp1Rls_pEoxXFV0gXOpI9AOlMSpygA/pub?output=csv', 
-    REFRESH_INTERVAL: 0 
+    REFRESH_INTERVAL: 0,
     // Intentar detectar si estamos en GitHub o Local
     IS_GITHUB: window.location.hostname.includes('github.io'),
     IS_LOCAL: window.location.protocol === 'file:'
