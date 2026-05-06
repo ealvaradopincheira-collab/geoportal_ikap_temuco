@@ -486,3 +486,16 @@ body {
     to { transform: scale(1); }
 }
 
+/* Catastro Popup Customization */
+.catastro-popup .popup-header {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.catastro-popup .id-badge {
+    background: #3b82f6;
+}
+
+.catastro-popup .detail-item strong {
+    color: #3b82f6;
+}
+

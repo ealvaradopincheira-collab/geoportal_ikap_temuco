@@ -16,6 +16,71 @@ const CONFIG = {
 // --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
+let catastroLayer = L.geoJSON(null, {
+    style: function(feature) {
+        return {
+            color: "#3b82f6", // Azul para diferenciar del color naranja
+            weight: 2,
+            opacity: 0.8,
+            fillColor: "#3b82f6",
+            fillOpacity: 0.2
+        };
+    },
+    pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "#3b82f6",
+            color: "#fff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        });
+    },
+    onEachFeature: function(feature, layer) {
+        if (feature.properties) {
+            const props = feature.properties;
+            
+            const NumeroID = props.id || props['codigo de'];
+            const Nombre = props.tipo || props.señaletic;
+            const Fecha = props.fecha;
+            const Estado = props.estado;
+            const Observaciones = props.observacia;
+
+            const popupContent = `
+                <div class="popup-container catastro-popup">
+                    <div class="popup-header">
+                        <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
+                        <div style="display: flex; flex-direction: column;">
+                            <h4>${Nombre || 'Señalética Base'}</h4>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Catastro Existente</span>
+                        </div>
+                    </div>
+                    <div class="popup-details">
+                        <div class="detail-item">
+                            <strong><i data-lucide="calendar"></i> Fecha:</strong>
+                            <span>${Fecha || 'No registrada'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i data-lucide="activity"></i> Estado:</strong>
+                            <span>${Estado || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i data-lucide="info"></i> Observaciones:</strong>
+                            <p>${Observaciones || '-'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            layer.bindPopup(popupContent, { maxWidth: 300, className: 'custom-popup' });
+            
+            layer.on('popupopen', () => {
+                lucide.createIcons();
+            });
+        }
+    }
+});
+
 let macrosectoresLayer = L.geoJSON(null, {
     style: function(feature) {
         return {
@@ -43,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
     loadTerritorialData();
     loadMacrosectores();
+    loadCatastro();
 });
 
 function initMap() {
@@ -71,6 +137,7 @@ function initMap() {
 
     const overlayMaps = {
         "Macrosectores": macrosectoresLayer,
+        "Catastro Base": catastroLayer,
         "Catastro en Terreno": markerLayer
     };
 
@@ -441,6 +508,27 @@ function projectGeometry(geometry, from, to) {
                 });
             });
         });
+    }
+}
+
+/**
+ * Carga y visualiza el GeoJSON de Catastro Pre-existente
+ */
+async function loadCatastro() {
+    console.log("Cargando Catastro Pre-existente (GeoJSON)...");
+    
+    try {
+        const response = await fetch('Macrosectores/CATASTRO.geojson');
+        if (!response.ok) throw new Error("No se pudo cargar el archivo .geojson");
+        
+        const geojson = await response.json();
+        
+        catastroLayer.addData(geojson);
+        catastroLayer.addTo(map);
+        console.log("Catastro Pre-existente cargado exitosamente.");
+
+    } catch (err) {
+        console.error("Error al cargar Catastro Pre-existente:", err);
     }
 }
 
