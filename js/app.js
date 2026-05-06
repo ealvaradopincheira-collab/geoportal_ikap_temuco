@@ -168,9 +168,22 @@ function initMap() {
         "Levantamiento Terreno": markerLayer
     };
 
-    L.control.layers(baseMaps, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
+    // Crear el control de capas y moverlo al panel lateral
+    const layerControl = L.control.layers(baseMaps, overlayMaps, { collapsed: false });
+    layerControl.addTo(map);
+    
+    // Mover el contenedor del control al panel lateral
+    const layerControlContainer = document.getElementById('layer-control-container');
+    if (layerControlContainer) {
+        layerControlContainer.appendChild(layerControl.getContainer());
+    }
     
     markerLayer.addTo(map);
+
+    // Forzar el renderizado correcto del mapa
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 500);
 }
 
 function initSidebar() {
