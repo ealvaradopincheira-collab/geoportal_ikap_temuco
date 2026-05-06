@@ -12,7 +12,7 @@
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -30,8 +30,7 @@
         <div class="header-content">
             <div class="logo-area">
                 <div class="logo-container">
-                    <img src="assets/logo_ikap.png" alt="Logo IKAP" class="logo-img" onerror="this.style.display='none'">
-                    <i data-lucide="map-pin" class="logo-icon-fallback"></i>
+                    <img src="assets/logo_ikap.png" alt="Logo IKAP" class="logo-img" onerror="this.src='https://placehold.co/120x60/000/f97316?text=IKAP'">
                 </div>
                 <div class="title-container">
                     <h1>Catastro Mantención Señaletica Vial <span>Temuco</span></h1>
@@ -43,7 +42,7 @@
                     <span class="dot"></span>
                     En Vivo
                 </div>
-                <img src="assets/logo_temuco.jpg" alt="Logo Temuco" class="logo-img" onerror="this.style.display='none'">
+                <img src="assets/logo_temuco.jpg" alt="Logo Temuco" class="logo-img" onerror="this.src='https://placehold.co/100x60/000/fff?text=Temuco'">
             </div>
         </div>
     </header>
@@ -58,29 +57,29 @@
                 <div class="sidebar-section">
                     <h3><i data-lucide="layers"></i> Capas Base</h3>
                     <div id="layer-control-container">
-                        <!-- Leaflet native control will be styled or custom control here -->
+                        <!-- Leaflet native control -->
                     </div>
                 </div>
                 
                 <div class="sidebar-section">
                     <h3><i data-lucide="info"></i> Información</h3>
                     <p class="sidebar-text">
-                        Este visor sincroniza en tiempo real los datos capturados en terreno.
+                        Este visor sincroniza en tiempo real los datos capturados en terreno mediante dispositivos móviles.
                     </p>
-                    <p class="sidebar-text" style="margin-top: 1rem; color: var(--primary); font-weight: 600;">
-                        <i data-lucide="refresh-cw" style="width: 14px; height: 14px; vertical-align: middle;"></i> Para mantener el registro actualizado hay que actualizar la página.
+                    <p class="sidebar-text" style="margin-top: 1.5rem; color: var(--primary); font-weight: 400; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Actualizar para ver cambios.
                     </p>
                 </div>
 
                 <div class="sidebar-section">
                     <h3><i data-lucide="phone"></i> Contacto</h3>
                     <div class="sidebar-text">
-                        <p><strong>Elaborado por:</strong> IKAP Publivial Spa</p>
-                        <p style="margin-top: 0.5rem;">(+56) 9 4582 6776</p>
-                        <p>(+56) 9 40205916</p>
+                        <p style="margin-bottom: 0.5rem; color: var(--text-light); font-weight: 500;">IKAP Publivial Spa</p>
+                        <p>(+56) 9 4582 6776</p>
+                        <p>(+56) 9 4020 5916</p>
                         <p style="margin-top: 0.5rem;"><a href="mailto:Ikap.temuco@gmail.com" style="color: var(--primary); text-decoration: none;">Ikap.temuco@gmail.com</a></p>
-                        <p style="margin-top: 1rem;"><strong>Casa Matriz:</strong></p>
-                        <p>J.A. Concha #824, Nueva Imperial, Araucanía.</p>
+                        <p style="margin-top: 1.5rem; color: var(--text-light); font-weight: 500;">Casa Matriz:</p>
+                        <p>J.A. Concha #824, Nueva Imperial.</p>
                     </div>
                 </div>
 
