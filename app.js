@@ -18,15 +18,17 @@ let map;
 let markerLayer = L.layerGroup();
 let catastroLayer = L.geoJSON(null, {
     style: function(feature) {
+        // Estilo aplicado si el archivo contiene líneas o polígonos
         return {
-            color: "#3b82f6", // Mantiene tu azul para diferenciar
-            weight: 2,
+            color: "#3b82f6", 
+            weight: 3,
             opacity: 0.8,
             fillColor: "#3b82f6",
             fillOpacity: 0.2
         };
     },
     pointToLayer: function (feature, latlng) {
+        // Solo se aplica si el archivo contiene Puntos exactos
         return L.circleMarker(latlng, {
             radius: 8,
             fillColor: "#3b82f6",
@@ -39,32 +41,61 @@ let catastroLayer = L.geoJSON(null, {
     onEachFeature: function(feature, layer) {
         if (feature.properties && feature.geometry && feature.geometry.coordinates) {
             const props = feature.properties;
-            const coords = feature.geometry.coordinates;
+            const geomType = feature.geometry.type;
+            let coords = feature.geometry.coordinates;
             
-            // CORRECCIÓN 1: Definición correcta del estándar EPSG para WGS84
+            // 1. EXTRACCIÓN SEGURA DE COORDENADAS SEGÚN TIPO DE GEOMETRÍA
+            let lng, lat;
+            if (geomType === 'Point') {
+                lng = coords[0]; lat = coords[1];
+            } else if (geomType === 'LineString' || geomType === 'MultiPoint') {
+                lng = coords[0][0]; lat = coords[0][1];
+            } else if (geomType === 'Polygon' || geomType === 'MultiLineString') {
+                lng = coords[0][0][0]; lat = coords[0][0][1];
+            } else if (geomType === 'MultiPolygon') {
+                lng = coords[0][0][0][0]; lat = coords[0][0][0][1];
+            }
+
+            // 2. CONVERSIÓN UTM CON PREVENCIÓN DE ERRORES
             const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
             const wgs84 = "EPSG:4326"; 
-            let displayUTM = "";
+            let displayUTM = "No disponible";
 
-            if (typeof proj4 !== 'undefined') {
+            if (lng !== undefined && lat !== undefined && typeof proj4 !== 'undefined') {
                 try {
-                    const utmCoords = proj4(wgs84, utm18S, [coords[0], coords[1]]);
+                    const utmCoords = proj4(wgs84, utm18S, [lng, lat]);
                     displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
                 } catch (e) {
-                    displayUTM = `${coords[1].toFixed(6)}, ${coords[0].toFixed(6)}`;
+                    // Fallback a grados decimales si falla proj4
+                    displayUTM = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                 }
             }
 
-            // Mapeo de propiedades (Catastro Existente)
-            const NumeroID = props['codigo de'] || props.id || props['id_0'] || 'S/N';
-            const Nombre = props.señaletic || props.tipo || props.Nombre || 'Señalética';
-            const Fecha = props.fecha || props.Fecha || 'No registrada';
-            const Estado = props.estado || props.Estado || 'N/A';
-            const Observaciones = props.observacia || props.Observaciones || '-';
-            const Direccion = props.dirección || props.direccion || '';
+            // 3. BUSCADOR DINÁMICO DE COLUMNAS (Ignora mayúsculas y espacios)
+            const keys = Object.keys(props);
+            const findKey = (terms) => keys.find(k => {
+                const cleanKey = k.toLowerCase().trim();
+                return terms.some(t => cleanKey.includes(t));
+            });
 
-            // CORRECCIÓN 2: Validación de imágenes para el catastro antiguo para igualar formato
-            const imgURL = props.foto || props.imagen || props.fotografia || null;
+            // Mapeo adaptativo: buscará la primera columna que contenga el texto
+            const keyId = findKey(['codigo de', 'código de', 'codigo']);
+            const keyNombre = findKey(['señal', 'tipo', 'nombre', 'calle']);
+            const keyFecha = findKey(['fecha', 'date']);
+            const keyEstado = findKey(['estado', 'status']);
+            const keyObs = findKey(['observaci', 'comentari']);
+            const keyDir = findKey(['direcci', 'ubicaci']);
+            const keyImg = findKey(['foto', 'imagen']);
+
+            const NumeroID = keyId ? props[keyId] : (props.id || 'S/N');
+            const Nombre = keyNombre ? props[keyNombre] : 'Elemento';
+            const Fecha = keyFecha ? props[keyFecha] : 'No registrada';
+            const Estado = keyEstado ? props[keyEstado] : 'N/A';
+            const Observaciones = keyObs ? props[keyObs] : '-';
+            const Direccion = keyDir ? props[keyDir] : '';
+            const imgURL = keyImg ? props[keyImg] : null;
+
+            // 4. ESTRUCTURACIÓN DEL POPUP
             let imagesHTML = '';
             if (imgURL) {
                 imagesHTML = `
@@ -76,7 +107,6 @@ let catastroLayer = L.geoJSON(null, {
                     </div>`;
             }
 
-            // CORRECCIÓN 3: Estructura HTML idéntica al catastro de terreno
             const popupContent = `
                 <div class="popup-container catastro-popup">
                     <div class="popup-header">
@@ -109,7 +139,13 @@ let catastroLayer = L.geoJSON(null, {
             `;
             
             layer.bindPopup(popupContent, { maxWidth: 300, className: 'custom-popup' });
-            layer.on('popupopen', () => lucide.createIcons());
+            
+            // Forzar renderizado de iconos cuando el popup se abre
+            layer.on('popupopen', () => {
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            });
         }
     }
 });
