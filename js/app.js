@@ -369,13 +369,10 @@ function processEntries(data) {
 // FIX: Interpolación correcta para imágenes de Google Drive
 function transformDriveUrl(url) {
     if (!url) return '';
-    const driveIdRegex = /(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/;
-    const match = url.match(driveIdRegex);
-
-    if (match && match[1]) {
-        return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-    }
-    return url; 
+    const match = url.match(/(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/);
+    
+    // Solución definitiva usando el endpoint de thumbnail para evitar el bloqueo CORS de Google
+    return match ? `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000` : url;
 }
 
 function showDemoData() {
