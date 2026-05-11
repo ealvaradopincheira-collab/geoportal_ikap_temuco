@@ -165,8 +165,12 @@ function initMap() {
     map = L.map('map', {
         center: CONFIG.MAP_CENTER,
         zoom: CONFIG.INITIAL_ZOOM,
-        layers: [esriWorldImagery]
+        layers: [esriWorldImagery],
+        zoomControl: false // Desactivamos el predeterminado
     });
+
+    // Lo movemos a la derecha para que no estorbe a la barra lateral
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
     baseMaps = {
         "Terreno (Esri)": esriWorldImagery,
@@ -175,6 +179,20 @@ function initMap() {
 
     updateLayerControl();
     markerLayer.addTo(map);
+}
+
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    document.getElementById(tabId).classList.add('active');
+    const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+    if(btn) btn.classList.add('active');
+    
+    // Si la pestaña es la de estadísticas, redimensionar el gráfico
+    if(tabId === 'tab-stats' && sectorChart) {
+        setTimeout(() => sectorChart.resize(), 100);
+    }
 }
 
 function updateLayerControl() {
@@ -356,8 +374,8 @@ function processEntries(data) {
         }
 
         if (!isNaN(finalLat) && !isNaN(finalLng)) {
-            const keyMacrozona = keys.find(k => k.toLowerCase().includes('macro') || k.toLowerCase().includes('sector'));
-            const macrozona = keyMacrozona ? (row[keyMacrozona] || 'Sin Sector') : 'Sin Sector';
+            const colMacro = keys.find(k => k.toUpperCase().trim() === 'MACROSECTOR');
+            const macrozona = colMacro ? (row[colMacro] || 'Sin Sector') : 'Sin Sector';
             
             if (!stats.sectores[macrozona]) stats.sectores[macrozona] = { terreno: 0, base: 0 };
             stats.sectores[macrozona].terreno++;
@@ -554,8 +572,8 @@ async function loadCatastro() {
         pointGeojson.features.forEach(f => {
             const props = f.properties;
             const keys = Object.keys(props);
-            const keyMacrozona = keys.find(k => k.toLowerCase().includes('macro') || k.toLowerCase().includes('sector'));
-            const macrozona = keyMacrozona ? (props[keyMacrozona] || 'Sin Sector') : 'Sin Sector';
+            const colMacro = keys.find(k => k.toUpperCase().trim() === 'MACROSECTOR');
+            const macrozona = colMacro ? (props[colMacro] || 'Sin Sector') : 'Sin Sector';
             
             if (!stats.sectores[macrozona]) stats.sectores[macrozona] = { terreno: 0, base: 0 };
             stats.sectores[macrozona].base++;

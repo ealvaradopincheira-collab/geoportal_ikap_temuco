@@ -49,80 +49,77 @@
             <button class="toggle-btn" id="sidebarToggle" title="Contraer/Expandir">
                 <i data-lucide="chevron-left" id="toggleIcon"></i>
             </button>
+            
+            <nav class="sidebar-tabs">
+                <button class="tab-btn active" onclick="switchTab('tab-layers')" title="Capas">
+                    <i data-lucide="layers"></i>
+                </button>
+                <button class="tab-btn" onclick="switchTab('tab-stats')" title="Estadísticas">
+                    <i data-lucide="bar-chart-3"></i>
+                </button>
+                <button class="tab-btn" onclick="switchTab('tab-info')" title="Información">
+                    <i data-lucide="info"></i>
+                </button>
+            </nav>
+
             <div class="sidebar-content">
-                <div class="sidebar-section">
-                    <h3><i data-lucide="layers"></i> Capas Base</h3>
-                    <div id="layer-control-container">
+                <div id="tab-layers" class="tab-pane active">
+                    <div class="sidebar-section">
+                        <h3>Capas del Proyecto</h3>
+                        <div id="layer-control-container"></div>
+                        
+                        <div class="control-item" style="margin-top: 2rem;">
+                            <span>Agrupar Señales (Cluster)</span>
+                            <label class="switch">
+                                <input type="checkbox" id="clusterToggle">
+                                <span class="slider round"></span>
+                            </label>
                         </div>
+                    </div>
                 </div>
                 
-                <div class="sidebar-section" id="stats-section">
-                    <h3><i data-lucide="bar-chart-2"></i> Estadísticas y Control</h3>
-                    
-                    <div class="control-item">
-                        <span>Agrupar Señales</span>
-                        <label class="switch">
-                            <input type="checkbox" id="clusterToggle">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="kpi-card global-kpi">
-                        <div class="kpi-header">KPI Global del Contrato</div>
-                        <div class="kpi-value"><span id="kpi-global-terreno">0</span> <span class="kpi-target">/ 15.000</span></div>
-                        <div class="kpi-label">Señales Levantadas</div>
-                        <div class="progress-bar-bg">
-                            <div class="progress-bar-fill" id="kpi-global-progress" style="width: 0%"></div>
+                <div id="tab-stats" class="tab-pane">
+                    <div class="sidebar-section">
+                        <h3>Control de Avance</h3>
+                        
+                        <div class="kpi-card global-kpi">
+                            <div class="kpi-header">Meta Contrato</div>
+                            <div class="kpi-value"><span id="kpi-global-terreno">0</span> <small>/ 15.000</small></div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="kpi-global-progress"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="sector-filter-container">
-                        <label for="sectorFilter">Sector:</label>
-                        <select id="sectorFilter" class="sector-select">
-                            <option value="ALL">Todos los Sectores</option>
-                        </select>
-                    </div>
-
-                    <div class="kpi-grid">
-                        <div class="kpi-card base-kpi">
-                            <div class="kpi-value" id="kpi-sector-base">0</div>
-                            <div class="kpi-label">Línea Base</div>
+                        <div class="sector-filter-container">
+                            <select id="sectorFilter" class="sector-select"></select>
                         </div>
-                        <div class="kpi-card terreno-kpi">
-                            <div class="kpi-value" id="kpi-sector-terreno">0</div>
-                            <div class="kpi-label">Levantamiento</div>
-                        </div>
-                    </div>
 
-                    <div class="chart-container">
-                        <canvas id="sectorChart"></canvas>
+                        <div class="kpi-grid">
+                            <div class="kpi-mini-card base">
+                                <span id="kpi-sector-base">0</span>
+                                <label>Base</label>
+                            </div>
+                            <div class="kpi-mini-card terreno">
+                                <span id="kpi-sector-terreno">0</span>
+                                <label>Levantado</label>
+                            </div>
+                        </div>
+
+                        <div class="chart-container">
+                            <canvas id="sectorChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                <div class="sidebar-section">
-                    <h3><i data-lucide="info"></i> Información</h3>
-                    <p class="sidebar-text">
-                        Este visor sincroniza en tiempo real los datos capturados en terreno.
-                    </p>
-                    <p class="sidebar-text" style="margin-top: 1rem; color: var(--primary); font-weight: 600;">
-                        <i data-lucide="refresh-cw" style="width: 14px; height: 14px; vertical-align: middle;"></i> Para mantener el registro actualizado hay que actualizar la página.
-                    </p>
-                </div>
-
-                <div class="sidebar-section">
-                    <h3><i data-lucide="phone"></i> Contacto</h3>
-                    <div class="sidebar-text">
-                        <p><strong>Elaborado por:</strong> IKAP Publivial Spa</p>
-                        <p style="margin-top: 0.5rem;">(+56) 9 4582 6776</p>
-                        <p>(+56) 9 40205916</p>
-                        <p style="margin-top: 0.5rem;"><a href="mailto:Ikap.temuco@gmail.com" style="color: var(--primary); text-decoration: none;">Ikap.temuco@gmail.com</a></p>
-                        <p style="margin-top: 1rem;"><strong>Casa Matriz:</strong></p>
-                        <p>J.A. Concha #824, Nueva Imperial, Araucanía.</p>
+                <div id="tab-info" class="tab-pane">
+                    <div class="sidebar-section">
+                        <h3>Contacto Soporte</h3>
+                        <div class="sidebar-text">
+                            <p><strong>IKAP Publivial Spa</strong></p>
+                            <p>(+56) 9 4582 6776</p>
+                            <p>Ikap.temuco@gmail.com</p>
+                        </div>
                     </div>
-                </div>
-
-                <div class="sidebar-footer">
-                    <p>© 2026 Elaborado por IKAP Publivial Spa</p>
                 </div>
             </div>
         </aside>

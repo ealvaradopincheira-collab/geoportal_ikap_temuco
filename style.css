@@ -162,9 +162,9 @@ body {
 }
 
 .sidebar-content {
-    padding: 2rem;
+    padding: 1.5rem;
     flex-grow: 1;
-    overflow-y: auto;
+    overflow: hidden;
     transition: opacity 0.2s ease;
 }
 
@@ -560,6 +560,40 @@ input:checked + .slider:before {
     border-radius: 50%;
 }
 
+/* Sidebar Tabs */
+.sidebar-tabs {
+    display: flex;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 15px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    background: rgba(249, 115, 22, 0.05);
+    border-bottom: 2px solid var(--primary);
+}
+
+.tab-pane {
+    display: none;
+    height: 100%;
+}
+
+.tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Dashboard Cards Modernas */
 .kpi-card {
     background: var(--bg-card);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -569,9 +603,12 @@ input:checked + .slider:before {
     text-align: center;
 }
 
-.global-kpi {
-    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.02));
-    border-color: rgba(249, 115, 22, 0.2);
+.kpi-card.global-kpi {
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    border-radius: 16px;
+    margin-bottom: 20px;
 }
 
 .kpi-header {
@@ -587,16 +624,6 @@ input:checked + .slider:before {
     font-weight: 700;
     color: white;
     margin: 5px 0;
-}
-
-.kpi-target {
-    font-size: 1rem;
-    color: var(--text-muted);
-}
-
-.kpi-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
 }
 
 .progress-bar-bg {
@@ -617,13 +644,6 @@ input:checked + .slider:before {
 
 .sector-filter-container {
     margin-bottom: 15px;
-}
-
-.sector-filter-container label {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-bottom: 5px;
 }
 
 .sector-select {
@@ -649,16 +669,29 @@ input:checked + .slider:before {
     margin-bottom: 15px;
 }
 
-.kpi-grid .kpi-card {
-    margin-bottom: 0;
+.kpi-mini-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.base-kpi {
-    border-top: 3px solid #3b82f6;
+.kpi-mini-card.base { border-left: 4px solid #3b82f6; }
+.kpi-mini-card.terreno { border-left: 4px solid var(--primary); }
+
+.kpi-mini-card span {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: white;
 }
 
-.terreno-kpi {
-    border-top: 3px solid var(--primary);
+.kpi-mini-card label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
 }
 
 .chart-container {
@@ -666,5 +699,6 @@ input:checked + .slider:before {
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 10px;
     padding: 15px;
-    height: 200px;
+    height: 180px;
+    margin-top: 15px;
 }
