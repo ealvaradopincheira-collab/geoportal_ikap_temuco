@@ -1,58 +1,36 @@
 /**
  * Geoportal Temuco - Catastro en Tiempo Real
- * Versión Final Corregida: 11-05-2026
- * Ajustes: Proyección UTM -> WGS84, Interceptor de Geometría, Fix Google Drive
+ * Versión Final: 11-05-2026
  */
 
-// --- CONFIGURACIÓN ---
 const CONFIG = {
     MAP_CENTER: [-38.7359, -72.5904],
     INITIAL_ZOOM: 14,
-    // URL del Google Sheet publicado como CSV
     SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTM9vKw4CQimv9A7xagyzecSKk9P-_4m7qJ8ykCmP3p9a8CrbMp1Rls_pEoxXFV0gXOpI9AOlMSpygA/pub?output=csv', 
     REFRESH_INTERVAL: 0 
 };
 
-// --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
+
+// CAPA CATASTRO (PUNTOS)
 let catastroLayer = L.geoJSON(null, {
     style: function(feature) {
-        return {
-            color: "#3b82f6", 
-            weight: 3,
-            opacity: 0.8,
-            fillColor: "#3b82f6",
-            fillOpacity: 0.2
-        };
+        return { color: "#3b82f6", weight: 3, opacity: 0.8, fillColor: "#3b82f6", fillOpacity: 0.2 };
     },
     pointToLayer: function (feature, latlng) {
-        // Círculos pequeños para evitar saturación visual
-        return L.circleMarker(latlng, {
-            radius: 3, 
-            fillColor: "#3b82f6",
-            color: "#ffffff",
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.9
-        });
+        return L.circleMarker(latlng, { radius: 3, fillColor: "#3b82f6", color: "#ffffff", weight: 1, opacity: 1, fillOpacity: 0.9 });
     },
     onEachFeature: function(feature, layer) {
         if (feature.properties && feature.geometry && feature.geometry.coordinates) {
             const props = feature.properties;
-            const geomType = feature.geometry.type;
-            let coords = feature.geometry.coordinates;
-            
-            // Extracción de coordenadas para el cálculo de UTM en el popup
-            let lng = coords[0], lat = coords[1];
-
+            let lng = feature.geometry.coordinates[0], lat = feature.geometry.coordinates[1];
             const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
             const wgs84 = "EPSG:4326"; 
             let displayUTM = "No disponible";
 
             if (lng !== undefined && lat !== undefined && typeof proj4 !== 'undefined') {
                 try {
-                    // Si ya están en grados, calculamos el UTM para mostrarlo; si están en metros, se muestran directos
                     if (Math.abs(lng) < 180) {
                         const utmCoords = proj4(wgs84, utm18S, [lng, lat]);
                         displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
@@ -64,7 +42,6 @@ let catastroLayer = L.geoJSON(null, {
                 }
             }
 
-            // Buscador dinámico de columnas
             const keys = Object.keys(props);
             const findKey = (terms) => keys.find(k => {
                 const cleanKey = k.toLowerCase().trim();
@@ -106,25 +83,11 @@ let catastroLayer = L.geoJSON(null, {
                     </div>
                     ${imagesHTML}
                     <div class="popup-details">
-                        <div class="detail-item">
-                            <strong><i data-lucide="calendar"></i> Fecha:</strong>
-                            <span>${Fecha}</span>
-                        </div>
-                        <div class="detail-item">
-                            <strong><i data-lucide="activity"></i> Estado:</strong>
-                            <span>${Estado}</span>
-                        </div>
-                        <div class="detail-item">
-                            <strong><i data-lucide="map-pin"></i> Dirección:</strong>
-                            <span>${Direccion}</span>
-                        </div>
-                        <div class="detail-item">
-                            <strong><i data-lucide="info"></i> Observaciones:</strong>
-                            <p>${Observaciones}</p>
-                        </div>
-                        <div class="coord-badge">
-                            <i data-lucide="map-pin"></i> UTM ${displayUTM}
-                        </div>
+                        <div class="detail-item"><strong><i data-lucide="calendar"></i> Fecha:</strong><span>${Fecha}</span></div>
+                        <div class="detail-item"><strong><i data-lucide="activity"></i> Estado:</strong><span>${Estado}</span></div>
+                        <div class="detail-item"><strong><i data-lucide="map-pin"></i> Dirección:</strong><span>${Direccion}</span></div>
+                        <div class="detail-item"><strong><i data-lucide="info"></i> Observaciones:</strong><p>${Observaciones}</p></div>
+                        <div class="coord-badge"><i data-lucide="map-pin"></i> UTM ${displayUTM}</div>
                     </div>
                 </div>
             `;
@@ -135,7 +98,9 @@ let catastroLayer = L.geoJSON(null, {
     }
 });
 
+// CAPA MACROSECTORES (POLÍGONOS)
 let macrosectoresLayer = L.geoJSON(null, {
+    interactive: false, // ¡ESTA ES LA MAGIA QUE DEJA PASAR EL CLIC!
     style: function(feature) {
         return { color: "#f97316", weight: 2, opacity: 0.8, fillColor: "#f97316", fillOpacity: 0.1 };
     },
@@ -146,7 +111,6 @@ let macrosectoresLayer = L.geoJSON(null, {
     }
 });
 
-// --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initSidebar();
@@ -158,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initMap() {
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
     const esriWorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles © Esri — Source: Esri, USDA, USGS, AEX, GeoEye, IGN, IGP, and the GIS User Community'
+        attribution: 'Tiles © Esri'
     });
 
     map = L.map('map', { center: CONFIG.MAP_CENTER, zoom: CONFIG.INITIAL_ZOOM, layers: [esriWorldImagery] });
@@ -243,8 +207,7 @@ function processEntries(data) {
 function transformDriveUrl(url) {
     if (!url) return '';
     const match = url.match(/(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/);
-    // CORRECCIÓN: Uso correcto de template strings con ${match[1]}
-    return match ? `https://lh3.googleusercontent.com/d/${match[1]}` : url;
+    return match ? `https://lh3.googleusercontent.com/d/$${match[1]}` : url;
 }
 
 async function loadMacrosectores() {
@@ -267,10 +230,6 @@ function projectGeometry(geometry, from, to) {
     else if (geometry.type === 'MultiPolygon') geometry.coordinates = geometry.coordinates.map(p => p.map(r => r.map(proj)));
 }
 
-/**
- * Carga Catastro Pre-existente
- * FIX: Convierte UTM a WGS84 e intercepta geometrías para crear Puntos
- */
 async function loadCatastro() {
     try {
         const response = await fetch('Macrosectores/CATASTRO.geojson');
