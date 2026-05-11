@@ -1,8 +1,24 @@
 /**
- * Geoportal Temuco - v6.0.0
- * Integración Completa: Estadísticas, Clustering y GeoJSON
+ * Geoportal Temuco - v6.1.0
  */
 
+// 1. Lógica de Pestañas (Definida primero)
+window.switchTab = function(tabId) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    const targetTab = document.getElementById(tabId);
+    if (targetTab) targetTab.classList.add('active');
+    
+    const targetBtn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+    if (targetBtn) targetBtn.classList.add('active');
+    
+    if (tabId === 'tab-stats' && sectorChart) {
+        setTimeout(() => sectorChart.resize(), 100);
+    }
+};
+
+// 2. Configuración Global
 const CONFIG = {
     MAP_CENTER: [-38.7359, -72.5904],
     INITIAL_ZOOM: 14,
@@ -17,16 +33,7 @@ let catastroLayer = L.geoJSON(null);
 let macrosectoresLayer = L.geoJSON(null);
 let useClustering = false;
 
-// --- LÓGICA DE PESTAÑAS ---
-window.switchTab = function(tabId) {
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
-    const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
-    if(btn) btn.classList.add('active');
-    if(tabId === 'tab-stats' && sectorChart) sectorChart.resize();
-};
-
+// 3. Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initSidebar();
@@ -37,13 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initMap() {
-    const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+    const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' });
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' });
 
     map = L.map('map', { 
         center: CONFIG.MAP_CENTER, 
         zoom: CONFIG.INITIAL_ZOOM, 
-        layers: [esri], 
+        layers: [esri],
         zoomControl: false 
     });
 
@@ -68,18 +75,25 @@ function initMap() {
 }
 
 function initStatsControl() {
-    document.getElementById('sectorFilter').addEventListener('change', (e) => updateDashboard(e.target.value));
-    document.getElementById('clusterToggle').addEventListener('change', (e) => {
-        useClustering = e.target.checked;
-        toggleClustering();
-    });
+    const filter = document.getElementById('sectorFilter');
+    if (filter) filter.addEventListener('change', (e) => updateDashboard(e.target.value));
+
+    const clusterToggle = document.getElementById('clusterToggle');
+    if (clusterToggle) {
+        clusterToggle.addEventListener('change', (e) => {
+            useClustering = e.target.checked;
+            toggleClustering();
+        });
+    }
 
     const ctx = document.getElementById('sectorChart');
-    sectorChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: ['Base', 'Levantado'], datasets: [{ data: [0, 0], backgroundColor: ['#3b82f6', '#f97316'] }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
+    if (ctx) {
+        sectorChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: ['Base', 'Levantado'], datasets: [{ data: [0, 0], backgroundColor: ['#3b82f6', '#f97316'] }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
 }
 
 function toggleClustering() {
@@ -101,24 +115,29 @@ function getMacrozona(item) {
 }
 
 async function loadTerritorialData() {
-    const response = await fetch(CONFIG.SHEET_CSV_URL + '&t=' + Date.now());
-    const csvText = await response.text();
-    Papa.parse(csvText, {
-        header: true,
-        complete: (results) => {
-            results.data.forEach(row => {
-                if(!row.Latitud || !row.Longitud) return;
-                const sector = getMacrozona(row);
-                if (!stats.sectores[sector]) stats.sectores[sector] = { base: 0, terreno: 0 };
-                stats.sectores[sector].terreno++;
-                stats.global.terreno++;
-                
-                L.circleMarker([row.Latitud, row.Longitud], { radius: 8, fillColor: "#f97316", color: "#fff", weight: 2, fillOpacity: 0.8 }).addTo(markerLayer);
-            });
-            populateDropdown();
-            updateDashboard();
-        }
-    });
+    try {
+        const response = await fetch(CONFIG.SHEET_CSV_URL + '&t=' + Date.now());
+        const csvText = await response.text();
+        Papa.parse(csvText, {
+            header: true,
+            complete: (results) => {
+                results.data.forEach(row => {
+                    const lat = parseFloat(row.Latitud);
+                    const lng = parseFloat(row.Longitud);
+                    if (isNaN(lat) || isNaN(lng)) return;
+
+                    const sector = getMacrozona(row);
+                    if (!stats.sectores[sector]) stats.sectores[sector] = { base: 0, terreno: 0 };
+                    stats.sectores[sector].terreno++;
+                    stats.global.terreno++;
+                    
+                    L.circleMarker([lat, lng], { radius: 8, fillColor: "#f97316", color: "#fff", weight: 2, fillOpacity: 0.8 }).addTo(markerLayer);
+                });
+                populateDropdown();
+                updateDashboard();
+            }
+        });
+    } catch (e) { console.error("Error cargando Terreno", e); }
 }
 
 async function loadMacrosectores() {
@@ -162,19 +181,30 @@ async function loadCatastro() {
 
 function updateDashboard(sector = 'ALL') {
     const data = sector === 'ALL' ? stats.global : (stats.sectores[sector] || { base: 0, terreno: 0 });
-    document.getElementById('kpi-global-terreno').textContent = stats.global.terreno.toLocaleString();
-    document.getElementById('kpi-sector-base').textContent = data.base.toLocaleString();
-    document.getElementById('kpi-sector-terreno').textContent = data.terreno.toLocaleString();
     
-    const progress = (stats.global.terreno / stats.global.meta) * 100;
-    document.getElementById('kpi-global-progress').style.width = `${Math.min(100, progress)}%`;
+    const globalVal = document.getElementById('kpi-global-terreno');
+    const baseVal = document.getElementById('kpi-sector-base');
+    const terrenoVal = document.getElementById('kpi-sector-terreno');
+    const progressFill = document.getElementById('kpi-global-progress');
+
+    if (globalVal) globalVal.textContent = stats.global.terreno.toLocaleString();
+    if (baseVal) baseVal.textContent = data.base.toLocaleString();
+    if (terrenoVal) terrenoVal.textContent = data.terreno.toLocaleString();
     
-    sectorChart.data.datasets[0].data = [data.base, data.terreno];
-    sectorChart.update();
+    if (progressFill) {
+        const progress = (stats.global.terreno / stats.global.meta) * 100;
+        progressFill.style.width = `${Math.min(100, progress)}%`;
+    }
+    
+    if (sectorChart) {
+        sectorChart.data.datasets[0].data = [data.base, data.terreno];
+        sectorChart.update();
+    }
 }
 
 function populateDropdown() {
     const select = document.getElementById('sectorFilter');
+    if (!select) return;
     select.innerHTML = '<option value="ALL">Todos los Sectores</option>';
     Object.keys(stats.sectores).sort().forEach(s => {
         const opt = document.createElement('option');
@@ -184,11 +214,22 @@ function populateDropdown() {
 }
 
 function initSidebar() {
-    document.getElementById('sidebarToggle').addEventListener('click', () => {
-        const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('collapsed');
-        document.getElementById('toggleIcon').setAttribute('data-lucide', sidebar.classList.contains('collapsed') ? 'chevron-right' : 'chevron-left');
-        lucide.createIcons();
-        setTimeout(() => map.invalidateSize(), 300);
-    });
+    const toggle = document.getElementById('sidebarToggle');
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            if (icon) icon.setAttribute('data-lucide', sidebar.classList.contains('collapsed') ? 'chevron-right' : 'chevron-left');
+            lucide.createIcons();
+            setTimeout(() => map.invalidateSize(), 300);
+        });
+    }
+}
+
+function openImageModal(src) {
+    let modal = document.getElementById('imageModal') || Object.assign(document.createElement('div'), { id: 'imageModal', className: 'image-modal', onclick: function(){this.classList.remove('active')} });
+    modal.innerHTML = `<img src="${src}">`;
+    if (!document.getElementById('imageModal')) document.body.appendChild(modal);
+    modal.classList.add('active');
 }
