@@ -1,7 +1,7 @@
 /**
  * Geoportal Temuco - Catastro en Tiempo Real
- * Versión Final Optimizada: 11-05-2026
- * Mejoras: Formato de círculo con borde, Clics pasantes en Macrosectores y Proyección Espacial.
+ * Versión Final y Completa: 11-05-2026
+ * Integración total: Estilos unificados, Proyección Espacial, Clics en Macrosectores y Popups completos.
  */
 
 // --- CONFIGURACIÓN ---
@@ -16,19 +16,16 @@ const CONFIG = {
 let map;
 let markerLayer = L.layerGroup();
 
-// 1. CAPA CATASTRO BASE (PUNTOS AZULES CON BORDE)
+// 1. CAPA CATASTRO BASE (AZUL CON BORDE BLANCO SÓLIDO)
 let catastroLayer = L.geoJSON(null, {
-    style: function(feature) {
-        return { color: "#3b82f6", weight: 3, opacity: 0.8, fillColor: "#3b82f6", fillOpacity: 0.2 };
-    },
     pointToLayer: function (feature, latlng) {
         return L.circleMarker(latlng, { 
-            radius: 6,            // Tamaño optimizado
-            fillColor: "#3b82f6", 
-            color: "#ffffff",     // Borde blanco para resaltar
-            weight: 2,            // Grosor del borde
+            radius: 6,            
+            fillColor: "#3b82f6", // Azul sólido
+            color: "#ffffff",     // Borde blanco puro
+            weight: 2,            
             opacity: 1, 
-            fillOpacity: 0.9 
+            fillOpacity: 1        // Relleno 100% sólido
         });
     },
     onEachFeature: function(feature, layer) {
@@ -103,9 +100,9 @@ let catastroLayer = L.geoJSON(null, {
     }
 });
 
-// 2. CAPA MACROSECTORES (POLÍGONOS FANTASMA)
+// 2. CAPA MACROSECTORES (POLÍGONOS NO INTERACTIVOS)
 let macrosectoresLayer = L.geoJSON(null, {
-    interactive: false, // Permite que el clic pase a los puntos de abajo
+    interactive: false, 
     style: function(feature) {
         return { color: "#f97316", weight: 2, opacity: 0.8, fillColor: "#f97316", fillOpacity: 0.1 };
     },
@@ -158,7 +155,7 @@ async function loadTerritorialData() {
 
     try {
         let response = await fetch(finalUrl);
-        if (!response.ok) throw new Error("Error en carga de Sheets");
+        if (!response.ok) throw new Error("Error en carga");
         const csvText = await response.text();
         Papa.parse(csvText, { header: true, dynamicTyping: true, skipEmptyLines: true, complete: (results) => processEntries(results.data) });
     } catch (err) { console.error(err); }
@@ -194,14 +191,61 @@ function processEntries(data) {
             displayUTM = `${utm[0].toFixed(0)} E, ${utm[1].toFixed(0)} N`;
         }
 
+        // Recuperar dinámicamente todas las columnas de terreno
+        const Nombre = row[keys.find(k => k.toLowerCase().includes('tipo') || k.toLowerCase().includes('nombre') || k.toLowerCase().includes('señal'))];
+        const Observaciones = row[keys.find(k => k.toLowerCase().includes('observaci') || k.toLowerCase().includes('comentario'))];
+        const colImgBefore = keys.find(k => k.toLowerCase().includes('antes'));
+        const colImgAfter = keys.find(k => k.toLowerCase().includes('despues'));
+        const colImgGeneric = keys.find(k => k.toLowerCase().includes('foto') || k.toLowerCase().includes('imagen'));
+        
+        const URL_Antes = colImgBefore ? transformDriveUrl(row[colImgBefore]) : null;
+        const URL_Despues = colImgAfter ? transformDriveUrl(row[colImgAfter]) : null;
+        const URL_Generica = colImgGeneric ? transformDriveUrl(row[colImgGeneric]) : null;
+        
+        const Fecha = row[keys.find(k => k.toLowerCase().includes('fecha'))];
+        const Modificacion = row[keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('trabajo'))];
+        const NumeroID = row[keys.find(k => k.toLowerCase().includes('código') || k.toLowerCase().includes('numero'))];
+
+        // Construir el HTML de las imágenes correctamente
+        let imagesHTML = '';
+        if (URL_Antes || URL_Despues) {
+            imagesHTML = `
+                <div class="popup-images-grid">
+                    ${URL_Antes ? `<div class="img-wrapper"><span class="img-label">Antes</span><img src="${URL_Antes}" class="popup-image" alt="Antes" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)"></div>` : ''}
+                    ${URL_Despues ? `<div class="img-wrapper"><span class="img-label">Después</span><img src="${URL_Despues}" class="popup-image" alt="Después" onerror="this.src='https://placehold.co/200x150/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)"></div>` : ''}
+                </div>
+            `;
+        } else if (URL_Generica) {
+            imagesHTML = `<img src="${URL_Generica}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/f97316?text=Sin+Foto'" onclick="openImageModal(this.src)">`;
+        }
+
+        // Estructura completa del Popup
         const popupContent = `
             <div class="popup-container">
-                <div class="popup-header"><span class="id-badge">Nº ${row[keys.find(k => k.toLowerCase().includes('código'))] || 'S/N'}</span><h4>${row[keys.find(k => k.toLowerCase().includes('tipo'))] || 'Señalética'}</h4></div>
-                <div class="popup-details">
-                    <div class="detail-item"><strong><i data-lucide="calendar"></i> Fecha:</strong><span>${row[keys.find(k => k.toLowerCase().includes('fecha'))] || 'S/F'}</span></div>
-                    <div class="coord-badge"><i data-lucide="map-pin"></i> UTM ${displayUTM}</div>
+                <div class="popup-header">
+                    <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
+                    <h4>${Nombre || 'Señalética'}</h4>
                 </div>
-            </div>`;
+                ${imagesHTML}
+                <div class="popup-details">
+                    <div class="detail-item">
+                        <strong><i data-lucide="calendar"></i> Fecha:</strong>
+                        <span>${Fecha || 'No registrada'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <strong><i data-lucide="wrench"></i> Modificación:</strong>
+                        <span>${Modificacion || 'N/A'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <strong><i data-lucide="info"></i> Observaciones:</strong>
+                        <p>${Observaciones || '-'}</p>
+                    </div>
+                    <div class="coord-badge">
+                        <i data-lucide="map-pin"></i> UTM ${displayUTM}
+                    </div>
+                </div>
+            </div>
+        `;
 
         L.circleMarker([finalLat, finalLng], { radius: 8, fillColor: "#f97316", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8 })
             .bindPopup(popupContent, { maxWidth: 300, className: 'custom-popup' })
@@ -213,7 +257,8 @@ function processEntries(data) {
 function transformDriveUrl(url) {
     if (!url) return '';
     const match = url.match(/(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/);
-    return match ? `https://lh3.googleusercontent.com/d/${match[1]}` : url;
+    // Interpolación correcta de variable con ${match[1]}
+    return match ? `https://lh3.googleusercontent.com/d/$$$${match[1]}` : url;
 }
 
 async function loadMacrosectores() {
