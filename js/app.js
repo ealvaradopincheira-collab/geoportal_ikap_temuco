@@ -1,8 +1,10 @@
 /**
  * Geoportal Temuco - Catastro en Tiempo Real
- * Versión Final: 11-05-2026
+ * Versión Final Optimizada: 11-05-2026
+ * Mejoras: Formato de círculo con borde, Clics pasantes en Macrosectores y Proyección Espacial.
  */
 
+// --- CONFIGURACIÓN ---
 const CONFIG = {
     MAP_CENTER: [-38.7359, -72.5904],
     INITIAL_ZOOM: 14,
@@ -10,21 +12,31 @@ const CONFIG = {
     REFRESH_INTERVAL: 0 
 };
 
+// --- VARIABLES GLOBALES ---
 let map;
 let markerLayer = L.layerGroup();
 
-// CAPA CATASTRO (PUNTOS)
+// 1. CAPA CATASTRO BASE (PUNTOS AZULES CON BORDE)
 let catastroLayer = L.geoJSON(null, {
     style: function(feature) {
         return { color: "#3b82f6", weight: 3, opacity: 0.8, fillColor: "#3b82f6", fillOpacity: 0.2 };
     },
     pointToLayer: function (feature, latlng) {
-        return L.circleMarker(latlng, { radius: 3, fillColor: "#3b82f6", color: "#ffffff", weight: 1, opacity: 1, fillOpacity: 0.9 });
+        return L.circleMarker(latlng, { 
+            radius: 6,            // Tamaño optimizado
+            fillColor: "#3b82f6", 
+            color: "#ffffff",     // Borde blanco para resaltar
+            weight: 2,            // Grosor del borde
+            opacity: 1, 
+            fillOpacity: 0.9 
+        });
     },
     onEachFeature: function(feature, layer) {
-        if (feature.properties && feature.geometry && feature.geometry.coordinates) {
+        if (feature.properties && feature.geometry) {
             const props = feature.properties;
-            let lng = feature.geometry.coordinates[0], lat = feature.geometry.coordinates[1];
+            let coords = feature.geometry.coordinates;
+            let lng = coords[0], lat = coords[1];
+
             const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
             const wgs84 = "EPSG:4326"; 
             let displayUTM = "No disponible";
@@ -64,23 +76,17 @@ let catastroLayer = L.geoJSON(null, {
             const Direccion = keyDir ? props[keyDir] : '';
             const imgURL = keyImg ? transformDriveUrl(props[keyImg]) : null;
 
-            let imagesHTML = '';
-            if (imgURL) {
-                imagesHTML = `
-                    <div class="popup-images-grid" style="grid-template-columns: 1fr;">
-                        <div class="img-wrapper">
-                            <span class="img-label">Registro</span>
-                            <img src="${imgURL}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/3b82f6?text=Sin+Foto'" onclick="openImageModal(this.src)">
-                        </div>
-                    </div>`;
-            }
+            let imagesHTML = imgURL ? `
+                <div class="popup-images-grid" style="grid-template-columns: 1fr;">
+                    <div class="img-wrapper">
+                        <span class="img-label">Registro</span>
+                        <img src="${imgURL}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/3b82f6?text=Sin+Foto'" onclick="openImageModal(this.src)">
+                    </div>
+                </div>` : '';
 
             const popupContent = `
                 <div class="popup-container catastro-popup">
-                    <div class="popup-header">
-                        <span class="id-badge">Nº ${NumeroID}</span>
-                        <h4>${Nombre}</h4>
-                    </div>
+                    <div class="popup-header"><span class="id-badge">Nº ${NumeroID}</span><h4>${Nombre}</h4></div>
                     ${imagesHTML}
                     <div class="popup-details">
                         <div class="detail-item"><strong><i data-lucide="calendar"></i> Fecha:</strong><span>${Fecha}</span></div>
@@ -89,8 +95,7 @@ let catastroLayer = L.geoJSON(null, {
                         <div class="detail-item"><strong><i data-lucide="info"></i> Observaciones:</strong><p>${Observaciones}</p></div>
                         <div class="coord-badge"><i data-lucide="map-pin"></i> UTM ${displayUTM}</div>
                     </div>
-                </div>
-            `;
+                </div>`;
             
             layer.bindPopup(popupContent, { maxWidth: 300, className: 'custom-popup' });
             layer.on('popupopen', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
@@ -98,9 +103,9 @@ let catastroLayer = L.geoJSON(null, {
     }
 });
 
-// CAPA MACROSECTORES (POLÍGONOS)
+// 2. CAPA MACROSECTORES (POLÍGONOS FANTASMA)
 let macrosectoresLayer = L.geoJSON(null, {
-    interactive: false, // ¡ESTA ES LA MAGIA QUE DEJA PASAR EL CLIC!
+    interactive: false, // Permite que el clic pase a los puntos de abajo
     style: function(feature) {
         return { color: "#f97316", weight: 2, opacity: 0.8, fillColor: "#f97316", fillOpacity: 0.1 };
     },
@@ -111,6 +116,7 @@ let macrosectoresLayer = L.geoJSON(null, {
     }
 });
 
+// --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initSidebar();
@@ -152,10 +158,10 @@ async function loadTerritorialData() {
 
     try {
         let response = await fetch(finalUrl);
-        if (!response.ok) throw new Error("Fallo en la carga");
+        if (!response.ok) throw new Error("Error en carga de Sheets");
         const csvText = await response.text();
         Papa.parse(csvText, { header: true, dynamicTyping: true, skipEmptyLines: true, complete: (results) => processEntries(results.data) });
-    } catch (err) { console.error("Error:", err); }
+    } catch (err) { console.error(err); }
 }
 
 function processEntries(data) {
@@ -207,7 +213,7 @@ function processEntries(data) {
 function transformDriveUrl(url) {
     if (!url) return '';
     const match = url.match(/(?:id=|[?\/]|preview\/|d\/)([\w-]{25,})/);
-    return match ? `https://lh3.googleusercontent.com/d/$${match[1]}` : url;
+    return match ? `https://lh3.googleusercontent.com/d/${match[1]}` : url;
 }
 
 async function loadMacrosectores() {
