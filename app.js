@@ -267,7 +267,7 @@ function processEntries(data) {
 
     // Definir proyección UTM Zona 18 Sur (Chile - Temuco)
     const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
-    const wgs84 = "WGS84";
+    const wgs84 = "EPSG:4326";
 
     let markerCount = 0;
 
