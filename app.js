@@ -19,7 +19,7 @@ let markerLayer = L.layerGroup();
 let catastroLayer = L.geoJSON(null, {
     style: function(feature) {
         return {
-            color: "#3b82f6", // Azul para diferenciar del color naranja
+            color: "#3b82f6", // Mantiene tu azul para diferenciar
             weight: 2,
             opacity: 0.8,
             fillColor: "#3b82f6",
@@ -41,14 +41,13 @@ let catastroLayer = L.geoJSON(null, {
             const props = feature.properties;
             const coords = feature.geometry.coordinates;
             
-            // Lógica de coordenadas UTM (idéntica a puntos naranja)
+            // CORRECCIÓN 1: Definición correcta del estándar EPSG para WGS84
             const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
-            const wgs84 = "WGS84";
+            const wgs84 = "EPSG:4326"; 
             let displayUTM = "";
 
             if (typeof proj4 !== 'undefined') {
                 try {
-                    // GeoJSON usa [lng, lat]
                     const utmCoords = proj4(wgs84, utm18S, [coords[0], coords[1]]);
                     displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
                 } catch (e) {
@@ -56,7 +55,7 @@ let catastroLayer = L.geoJSON(null, {
                 }
             }
 
-            // Mapeo de propiedades (Priorizando 'codigo de' para el ID)
+            // Mapeo de propiedades (Catastro Existente)
             const NumeroID = props['codigo de'] || props.id || props['id_0'] || 'S/N';
             const Nombre = props.señaletic || props.tipo || props.Nombre || 'Señalética';
             const Fecha = props.fecha || props.Fecha || 'No registrada';
@@ -64,12 +63,27 @@ let catastroLayer = L.geoJSON(null, {
             const Observaciones = props.observacia || props.Observaciones || '-';
             const Direccion = props.dirección || props.direccion || '';
 
+            // CORRECCIÓN 2: Validación de imágenes para el catastro antiguo para igualar formato
+            const imgURL = props.foto || props.imagen || props.fotografia || null;
+            let imagesHTML = '';
+            if (imgURL) {
+                imagesHTML = `
+                    <div class="popup-images-grid" style="grid-template-columns: 1fr;">
+                        <div class="img-wrapper">
+                            <span class="img-label">Registro</span>
+                            <img src="${imgURL}" class="popup-image" alt="Foto" onerror="this.src='https://placehold.co/400x250/222/3b82f6?text=Sin+Foto'" onclick="openImageModal(this.src)">
+                        </div>
+                    </div>`;
+            }
+
+            // CORRECCIÓN 3: Estructura HTML idéntica al catastro de terreno
             const popupContent = `
                 <div class="popup-container catastro-popup">
                     <div class="popup-header">
                         <span class="id-badge">Nº ${NumeroID}</span>
                         <h4>${Nombre}</h4>
                     </div>
+                    ${imagesHTML}
                     <div class="popup-details">
                         <div class="detail-item">
                             <strong><i data-lucide="calendar"></i> Fecha:</strong>
