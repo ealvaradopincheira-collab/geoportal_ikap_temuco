@@ -1,29 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catastro Mantención Señaletica Vial - Temuco</title>
-    
+
+    <meta name="description"
+        content="Sistema de Información Geográfica (WebGIS) para el catastro territorial de Temuco en tiempo real, integrado con Google Forms y Sheets.">
+    <meta name="keywords" content="Temuco, WebGIS, Catastro, Google Sheets, Leaflet, Geoportal">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-    
-    <link rel="stylesheet" href="css/style.css?v=6.3.0">
-    
+
+    <link rel="stylesheet" href="css/style.css?v=4.0.0">
+
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
 
     <header class="main-header">
         <div class="header-content">
             <div class="logo-area">
                 <div class="logo-container">
-                    <img src="assets/logo_ikap.png" alt="Logo IKAP" class="logo-img" onerror="this.style.display='none'">
+                    <img src="assets/logo_ikap.png" alt="Logo IKAP" class="logo-img"
+                        onerror="this.style.display='none'">
                     <i data-lucide="map-pin" class="logo-icon-fallback"></i>
                 </div>
                 <div class="title-container">
@@ -32,20 +40,32 @@
                 </div>
             </div>
             <div class="header-actions">
-                <div class="status-indicator"><span class="dot"></span>En Vivo</div>
-                <img src="assets/logo_temuco.jpg" alt="Logo Temuco" class="logo-img" onerror="this.style.display='none'">
+                <div class="status-indicator">
+                    <span class="dot"></span>
+                    En Vivo
+                </div>
+                <img src="assets/logo_temuco.jpg" alt="Logo Temuco" class="logo-img"
+                    onerror="this.style.display='none'">
             </div>
         </div>
     </header>
 
     <main class="app-container">
         <aside class="sidebar" id="sidebar">
-            <button class="toggle-btn" id="sidebarToggle"><i data-lucide="chevron-left" id="toggleIcon"></i></button>
-            
+            <button class="toggle-btn" id="sidebarToggle" title="Contraer/Expandir">
+                <i data-lucide="chevron-left" id="toggleIcon"></i>
+            </button>
+
             <nav class="sidebar-tabs">
-                <button class="tab-btn active" onclick="switchTab('tab-layers')"><i data-lucide="layers"></i></button>
-                <button class="tab-btn" onclick="switchTab('tab-stats')"><i data-lucide="bar-chart-3"></i></button>
-                <button class="tab-btn" onclick="switchTab('tab-info')"><i data-lucide="info"></i></button>
+                <button class="tab-btn active" onclick="switchTab('tab-layers')" title="Capas">
+                    <i data-lucide="layers"></i>
+                </button>
+                <button class="tab-btn" onclick="switchTab('tab-stats')" title="Estadísticas">
+                    <i data-lucide="bar-chart-3"></i>
+                </button>
+                <button class="tab-btn" onclick="switchTab('tab-info')" title="Información">
+                    <i data-lucide="info"></i>
+                </button>
             </nav>
 
             <div class="sidebar-content">
@@ -53,6 +73,7 @@
                     <div class="sidebar-section">
                         <h3>Capas del Proyecto</h3>
                         <div id="layer-control-container"></div>
+
                         <div class="control-item" style="margin-top: 2rem;">
                             <span>Agrupar Señales (Cluster)</span>
                             <label class="switch">
@@ -62,30 +83,43 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="tab-stats" class="tab-pane">
                     <div class="sidebar-section">
                         <h3>Control de Avance</h3>
+
                         <div class="kpi-card global-kpi">
-                            <div class="kpi-header">Meta del Contrato</div>
+                            <div class="kpi-header">Meta Contrato</div>
                             <div class="kpi-value"><span id="kpi-global-terreno">0</span> <small>/ 15.000</small></div>
-                            <div class="progress-bar-bg"><div class="progress-bar-fill" id="kpi-global-progress"></div></div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="kpi-global-progress"></div>
+                            </div>
                         </div>
+
                         <div class="sector-filter-container">
-                            <label>Seleccionar Sector:</label>
-                            <select id="sectorFilter" class="sector-select"><option value="ALL">Todos los Sectores</option></select>
+                            <select id="sectorFilter" class="sector-select"></select>
                         </div>
+
                         <div class="kpi-grid">
-                            <div class="kpi-mini-card base"><span id="kpi-sector-base">0</span><label>Base</label></div>
-                            <div class="kpi-mini-card terreno"><span id="kpi-sector-terreno">0</span><label>Levantado</label></div>
+                            <div class="kpi-mini-card base">
+                                <span id="kpi-sector-base">0</span>
+                                <label>Base</label>
+                            </div>
+                            <div class="kpi-mini-card terreno">
+                                <span id="kpi-sector-terreno">0</span>
+                                <label>Levantado</label>
+                            </div>
                         </div>
-                        <div class="chart-container"><canvas id="sectorChart"></canvas></div>
+
+                        <div class="chart-container">
+                            <canvas id="sectorChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
                 <div id="tab-info" class="tab-pane">
                     <div class="sidebar-section">
-                        <h3>Información de Soporte</h3>
+                        <h3>Contacto Soporte</h3>
                         <div class="sidebar-text">
                             <p><strong>IKAP Publivial Spa</strong></p>
                             <p>(+56) 9 4582 6776</p>
@@ -99,14 +133,19 @@
         <div id="map"></div>
     </main>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script src="js/app.js?v=6.3.0"></script>
-    <script>lucide.createIcons();</script>
+
+    <script src="js/app.js?v=4.0.0"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
 </body>
+
 </html>
