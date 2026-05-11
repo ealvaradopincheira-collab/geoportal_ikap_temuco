@@ -30,18 +30,34 @@ let catastroLayer = L.geoJSON(null, {
         return L.circleMarker(latlng, {
             radius: 8,
             fillColor: "#3b82f6",
-            color: "#fff",
+            color: "#ffffff",
             weight: 2,
             opacity: 1,
-            fillOpacity: 0.8
+            fillOpacity: 0.9
         });
     },
     onEachFeature: function(feature, layer) {
-        if (feature.properties) {
+        if (feature.properties && feature.geometry && feature.geometry.coordinates) {
             const props = feature.properties;
+            const coords = feature.geometry.coordinates;
             
-            // Mapeo robusto de propiedades (maneja posibles variaciones de nombre)
-            const NumeroID = props.id || props['codigo de'] || props['id_0'] || 'S/N';
+            // Lógica de coordenadas UTM (idéntica a puntos naranja)
+            const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
+            const wgs84 = "WGS84";
+            let displayUTM = "";
+
+            if (typeof proj4 !== 'undefined') {
+                try {
+                    // GeoJSON usa [lng, lat]
+                    const utmCoords = proj4(wgs84, utm18S, [coords[0], coords[1]]);
+                    displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
+                } catch (e) {
+                    displayUTM = `${coords[1].toFixed(6)}, ${coords[0].toFixed(6)}`;
+                }
+            }
+
+            // Mapeo de propiedades (Priorizando 'codigo de' para el ID)
+            const NumeroID = props['codigo de'] || props.id || props['id_0'] || 'S/N';
             const Nombre = props.señaletic || props.tipo || props.Nombre || 'Señalética';
             const Fecha = props.fecha || props.Fecha || 'No registrada';
             const Estado = props.estado || props.Estado || 'N/A';
@@ -51,17 +67,17 @@ let catastroLayer = L.geoJSON(null, {
             const popupContent = `
                 <div class="popup-container catastro-popup">
                     <div class="popup-header">
-                        <span class="id-badge">Nº ${NumeroID || 'S/N'}</span>
-                        <h4>${Nombre || 'Señalética'}</h4>
+                        <span class="id-badge">Nº ${NumeroID}</span>
+                        <h4>${Nombre}</h4>
                     </div>
                     <div class="popup-details">
                         <div class="detail-item">
                             <strong><i data-lucide="calendar"></i> Fecha:</strong>
-                            <span>${Fecha || 'No registrada'}</span>
+                            <span>${Fecha}</span>
                         </div>
                         <div class="detail-item">
                             <strong><i data-lucide="activity"></i> Estado:</strong>
-                            <span>${Estado || 'N/A'}</span>
+                            <span>${Estado}</span>
                         </div>
                         <div class="detail-item">
                             <strong><i data-lucide="map-pin"></i> Dirección:</strong>
@@ -69,7 +85,10 @@ let catastroLayer = L.geoJSON(null, {
                         </div>
                         <div class="detail-item">
                             <strong><i data-lucide="info"></i> Observaciones:</strong>
-                            <p>${Observaciones || '-'}</p>
+                            <p>${Observaciones}</p>
+                        </div>
+                        <div class="coord-badge">
+                            <i data-lucide="map-pin"></i> UTM ${displayUTM}
                         </div>
                     </div>
                 </div>
