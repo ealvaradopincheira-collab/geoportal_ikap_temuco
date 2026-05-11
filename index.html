@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     
-    <link rel="stylesheet" href="css/style.css?v=5.0.0">
+    <link rel="stylesheet" href="css/style.css?v=6.0.0">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
@@ -64,13 +64,14 @@
                 
                 <div id="tab-stats" class="tab-pane">
                     <div class="sidebar-section">
-                        <h3>Avance de Contrato</h3>
+                        <h3>Control de Avance</h3>
                         <div class="kpi-card global-kpi">
-                            <div class="kpi-header">Meta Global</div>
+                            <div class="kpi-header">Meta del Contrato</div>
                             <div class="kpi-value"><span id="kpi-global-terreno">0</span> <small>/ 15.000</small></div>
                             <div class="progress-bar-bg"><div class="progress-bar-fill" id="kpi-global-progress"></div></div>
                         </div>
                         <div class="sector-filter-container">
+                            <label>Filtrar por Sector:</label>
                             <select id="sectorFilter" class="sector-select"><option value="ALL">Todos los Sectores</option></select>
                         </div>
                         <div class="kpi-grid">
@@ -88,6 +89,7 @@
                             <p><strong>IKAP Publivial Spa</strong></p>
                             <p>(+56) 9 4582 6776</p>
                             <p>Ikap.temuco@gmail.com</p>
+                            <p style="margin-top: 1rem;"><strong>Visor v6.0</strong></p>
                         </div>
                     </div>
                 </div>
@@ -103,7 +105,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/app.js?v=5.0.0"></script>
+    <script src="js/app.js?v=6.0.0"></script>
     <script>lucide.createIcons();</script>
 </body>
 </html>
