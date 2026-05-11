@@ -1,6 +1,6 @@
 /**
  * Geoportal Temuco - Catastro en Tiempo Real
- * Integración Leaflet + Google Sheets + Google Drive
+ * Actualización: 11-05-2026 00:30 (Resiliencia + Fix Mapeo)
  */
 
 // --- CONFIGURACIÓN ---
@@ -206,10 +206,18 @@ async function loadTerritorialData() {
         finalUrl = `https://corsproxy.io/?${encodeURIComponent(sheetUrl)}`;
     }
 
-    console.log("URL de descarga:", finalUrl);
+    console.log("URL de descarga base:", finalUrl);
 
     try {
-        const response = await fetch(finalUrl);
+        let response = await fetch(finalUrl);
+        
+        // Si el fetch directo falla o no es 200 OK, y no estamos en local, intentamos vía proxy
+        if (!response.ok && window.location.protocol !== 'file:') {
+            console.warn(`Fallo carga directa (${response.status}). Intentando vía Proxy...`);
+            finalUrl = `https://corsproxy.io/?${encodeURIComponent(sheetUrl)}`;
+            response = await fetch(finalUrl);
+        }
+
         if (!response.ok) throw new Error(`El servidor respondió con código ${response.status}`);
         
         const csvText = await response.text();
@@ -257,7 +265,7 @@ function processEntries(data) {
         const colX = keys.find(k => k.toLowerCase().includes('este'));
         const colY = keys.find(k => k.toLowerCase().includes('norte'));
         
-        const colName = keys.find(k => k.toLowerCase().includes('nombre') || k.toLowerCase().includes('propietario'));
+        const colName = keys.find(k => k.toLowerCase().includes('señalética') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('nombre') || k.toLowerCase().includes('propietario'));
         const colObs = keys.find(k => k.toLowerCase().includes('observaci') || k.toLowerCase().includes('comentario'));
         
         const colImgBefore = keys.find(k => k.toLowerCase().includes('fotograf') && k.toLowerCase().includes('antes'));
