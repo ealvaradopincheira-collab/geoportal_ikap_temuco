@@ -33,6 +33,7 @@ let overlayMaps = {};
 let catastroLayer = L.geoJSON(null, {
     pointToLayer: function (feature, latlng) {
         return L.circleMarker(latlng, {
+            pane: 'catastroBasePane',
             radius: 6,
             fillColor: "#3b82f6",
             color: "#ffffff",
@@ -122,6 +123,7 @@ let catastroLayer = L.geoJSON(null, {
 
 // 2. CAPA MACROSECTORES (POLÍGONOS FANTASMAS PARA PERMITIR CLIC)
 let macrosectoresLayer = L.geoJSON(null, {
+    pane: 'macrosectoresPane',
     interactive: false, // Permite que el clic traspase a los puntos
     filter: function (feature) {
         if (feature.properties) {
@@ -179,6 +181,16 @@ function initMap() {
         zoomControl: false // Desactivamos el predeterminado
     });
 
+    // Panes personalizados para garantizar orden y visibilidad de capas
+    map.createPane('macrosectoresPane');
+    map.getPane('macrosectoresPane').style.zIndex = 400;
+
+    map.createPane('catastroBasePane');
+    map.getPane('catastroBasePane').style.zIndex = 450;
+
+    map.createPane('terrenoPane');
+    map.getPane('terrenoPane').style.zIndex = 500;
+
     // Lo movemos a la derecha para que no estorbe a la barra lateral
     L.control.zoom({ position: 'topright' }).addTo(map);
 
@@ -215,6 +227,13 @@ function updateLayerControl() {
     };
 
     layerControl = L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
+
+    // Integrar el control de capas directamente en la barra lateral
+    const container = document.getElementById('layer-control-container');
+    if (container) {
+        container.innerHTML = '';
+        container.appendChild(layerControl.getContainer());
+    }
 }
 
 function initStatsControl() {
@@ -274,37 +293,49 @@ function initSidebar() {
 }
 
 async function loadTerritorialData() {
-    console.log("Iniciando solicitud de datos de terreno...");
+    console.log("Iniciando solicitud de datos de terreno en vivo...");
     const timestamp = new Date().getTime();
     const sheetUrl = `${CONFIG.SHEET_CSV_URL}&t=${timestamp}`;
 
-    let finalUrl = sheetUrl;
-    if (window.location.protocol === 'file:') {
-        finalUrl = `https://corsproxy.io/?${encodeURIComponent(sheetUrl)}`;
-    }
-
-    try {
-        let response = await fetch(finalUrl);
-        if (!response.ok && window.location.protocol !== 'file:') {
-            finalUrl = `https://corsproxy.io/?${encodeURIComponent(sheetUrl)}`;
-            response = await fetch(finalUrl);
+    const parseCsvText = (csvText) => {
+        if (!csvText || csvText.trim().startsWith('<!DOCTYPE') || csvText.trim().startsWith('<html')) {
+            throw new Error('La respuesta recibida no es un CSV válido.');
         }
-
-        if (!response.ok) throw new Error(`El servidor respondió con código ${response.status}`);
-
-        const csvText = await response.text();
         Papa.parse(csvText, {
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
             complete: function (results) {
+                console.log(`Datos de terreno procesados: ${results.data.length} filas.`);
                 processEntries(results.data);
             }
         });
+    };
 
+    try {
+        const response = await fetch(sheetUrl, { cache: 'no-cache' });
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+        const csvText = await response.text();
+        parseCsvText(csvText);
     } catch (err) {
-        console.error("FALLO CRÍTICO DE CARGA:", err);
-        showDemoData();
+        console.warn("Fetch directo falló, usando Papa.parse con download:", err);
+        Papa.parse(sheetUrl, {
+            download: true,
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: function (results) {
+                if (results.data && results.data.length > 0) {
+                    console.log(`Datos de terreno cargados vía Papa.parse: ${results.data.length} filas.`);
+                    processEntries(results.data);
+                } else {
+                    console.error("Papa.parse no obtuvo registros válidos.");
+                }
+            },
+            error: function (pErr) {
+                console.error("FALLO CRÍTICO DE CARGA DE TERRENO:", pErr);
+            }
+        });
     }
 }
 
@@ -474,12 +505,13 @@ function processEntries(data) {
             `;
 
             const marker = L.circleMarker([finalLat, finalLng], {
+                pane: 'terrenoPane',
                 radius: 8,
                 fillColor: "#f97316",
                 color: "#ffffff",
                 weight: 2,
                 opacity: 1,
-                fillOpacity: 0.9
+                fillOpacity: 0.95
             }).bindPopup(popupContent, {
                 maxWidth: 300,
                 className: 'custom-popup'
