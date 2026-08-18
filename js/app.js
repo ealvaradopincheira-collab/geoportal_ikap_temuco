@@ -11,15 +11,19 @@ const CONFIG = {
     REFRESH_INTERVAL: 0
 };
 
-// --- USUARIOS AUTORIZADOS DE CUADRILLAS ---
+// --- USUARIOS AUTORIZADOS (ADMINISTRACIÓN Y CUADRILLAS) ---
 const AUTH_USERS = [
-    { group: "GRUPO 1", email: "mantenciontemucog1@gmail.com", pass: "ikap1234" },
-    { group: "GRUPO 2", email: "mantenciontemucog2@gmail.com", pass: "ikap1234" },
-    { group: "GRUPO 3", email: "mantenciontemucog3@gmail.com", pass: "ikap1234" },
-    { group: "GRUPO 4", email: "mantenciontemucog4@gmail.com", pass: "ikap1234" }
+    // Administradores
+    { group: "ADMIN", role: "admin", name: "IKAP", email: "ikap.temuco@gmail.com", pass: "ikap1234" },
+    { group: "ADMIN", role: "admin", name: "Elías Alvarado", email: "ealvaradopincheira@gmail.com", pass: "ikap1234" },
+    // Cuadrillas de Terreno
+    { group: "GRUPO 1", role: "cuadrilla", name: "Cuadrilla 1", email: "mantenciontemucog1@gmail.com", pass: "ikap1234" },
+    { group: "GRUPO 2", role: "cuadrilla", name: "Cuadrilla 2", email: "mantenciontemucog2@gmail.com", pass: "ikap1234" },
+    { group: "GRUPO 3", role: "cuadrilla", name: "Cuadrilla 3", email: "mantenciontemucog3@gmail.com", pass: "ikap1234" },
+    { group: "GRUPO 4", role: "cuadrilla", name: "Cuadrilla 4", email: "mantenciontemucog4@gmail.com", pass: "ikap1234" }
 ];
 
-// --- GESTIÓN DE SESIÓN DE CUADRILLAS ---
+// --- GESTIÓN DE SESIÓN DE USUARIOS Y CUADRILLAS ---
 function getLoggedInUser() {
     try {
         const stored = localStorage.getItem('ikap_auth_user');
@@ -43,10 +47,12 @@ function renderAuthUI() {
     if (!authSection) return;
     const user = getLoggedInUser();
     if (user) {
+        const isAdmin = user.role === 'admin' || user.group === 'ADMIN';
+        const labelText = isAdmin ? `ADMIN: ${user.name || user.email.split('@')[0]}` : user.group;
         authSection.innerHTML = `
-            <div class="user-session-badge">
-                <span class="user-status-dot"></span>
-                <span class="user-group-name">${user.group}</span>
+            <div class="user-session-badge ${isAdmin ? 'admin-badge' : ''}" title="${user.email}">
+                <span class="user-status-dot ${isAdmin ? 'admin-dot' : ''}"></span>
+                <span class="user-group-name">${labelText}</span>
                 <button class="logout-btn" onclick="logoutUser()" title="Cerrar sesión (${user.email})">
                     <i data-lucide="log-out"></i>
                 </button>
@@ -56,7 +62,7 @@ function renderAuthUI() {
         authSection.innerHTML = `
             <button class="login-trigger-btn" onclick="openLoginModal()">
                 <i data-lucide="user-check"></i>
-                <span>Ingreso Cuadrilla</span>
+                <span>Ingreso / Login</span>
             </button>
         `;
     }
@@ -95,13 +101,15 @@ function handleLoginSubmit(event) {
     if (matchedUser) {
         setLoggedInUser({
             group: matchedUser.group,
+            role: matchedUser.role,
+            name: matchedUser.name,
             email: matchedUser.email,
             loginTime: new Date().toISOString()
         });
         closeLoginModal();
     } else {
         if (errEl) {
-            errEl.textContent = 'Credenciales inválidas. Verifique el correo o contraseña del grupo.';
+            errEl.textContent = 'Credenciales inválidas. Verifique el correo o contraseña.';
             errEl.style.display = 'block';
         }
     }
@@ -600,7 +608,9 @@ function processEntries(data) {
             let grupoEtiqueta = '';
             if (Email) {
                 const elow = Email.toLowerCase();
-                if (elow.includes('g1') || elow.includes('grupo 1') || elow.includes('mantenciontemucog1')) grupoEtiqueta = 'GRUPO 1';
+                if (elow === 'ikap.temuco@gmail.com') grupoEtiqueta = 'ADMIN (IKAP)';
+                else if (elow === 'ealvaradopincheira@gmail.com') grupoEtiqueta = 'ADMIN (Elías Alvarado)';
+                else if (elow.includes('g1') || elow.includes('grupo 1') || elow.includes('mantenciontemucog1')) grupoEtiqueta = 'GRUPO 1';
                 else if (elow.includes('g2') || elow.includes('grupo 2') || elow.includes('mantenciontemucog2')) grupoEtiqueta = 'GRUPO 2';
                 else if (elow.includes('g3') || elow.includes('grupo 3') || elow.includes('mantenciontemucog3')) grupoEtiqueta = 'GRUPO 3';
                 else if (elow.includes('g4') || elow.includes('grupo 4') || elow.includes('mantenciontemucog4')) grupoEtiqueta = 'GRUPO 4';

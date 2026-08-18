@@ -924,6 +924,11 @@ input:checked+.slider:before {
     border-radius: 9999px;
 }
 
+.user-session-badge.admin-badge {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
 .user-status-dot {
     width: 8px;
     height: 8px;
@@ -932,11 +937,20 @@ input:checked+.slider:before {
     box-shadow: 0 0 6px #22c55e;
 }
 
+.user-status-dot.admin-dot {
+    background-color: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+}
+
 .user-group-name {
     font-size: 0.8rem;
     font-weight: 700;
     color: #4ade80;
     letter-spacing: 0.02em;
+}
+
+.user-session-badge.admin-badge .user-group-name {
+    color: #fbbf24;
 }
 
 .logout-btn {
