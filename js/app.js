@@ -517,67 +517,124 @@ function processEntries(data) {
         const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('trabajo'));
         const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
 
-        let rawX = parseNum(colLng ? row[colLng] : row[colX]);
-        let rawY = parseNum(colLat ? row[colLat] : row[colY]);
+        // 1. Detección Inteligente de URLs de Fotos en cualquier columna de la fila
+        const rowUrls = [];
+        keys.forEach(k => {
+            const val = row[k];
+            if (isUrl(val)) {
+                rowUrls.push(String(val).trim());
+            }
+        });
 
-        // Verificar si las columnas de fotos contienen números UTM por desfase de API/Form
-        const numImgBefore = parseNum(row[colImgBefore]);
-        const numImgAfter = parseNum(row[colImgAfter]);
+        let URL_Antes = null;
+        let URL_Despues = null;
+        let URL_Generica = null;
 
+        if (isUrl(row[colImgBefore])) URL_Antes = transformDriveUrl(row[colImgBefore]);
+        if (isUrl(row[colImgAfter])) URL_Despues = transformDriveUrl(row[colImgAfter]);
+
+        if (!URL_Antes && !URL_Despues) {
+            if (rowUrls.length >= 2) {
+                URL_Antes = transformDriveUrl(rowUrls[0]);
+                URL_Despues = transformDriveUrl(rowUrls[1]);
+            } else if (rowUrls.length === 1) {
+                URL_Generica = transformDriveUrl(rowUrls[0]);
+            }
+        } else if (!URL_Antes && rowUrls.length === 1) {
+            URL_Generica = URL_Despues;
+            URL_Despues = null;
+        }
+
+        // 2. Detección Inteligente de Coordenadas (UTM o WGS84)
         let finalLat = null;
         let finalLng = null;
         let displayUTM = "No disponible";
 
-        // Caso 1: Coordenadas UTM estándar en X/Y (Este ~600k-800k, Norte ~5.6M-5.8M)
-        if (rawX && rawY && rawX > 100000 && rawY > 1000000 && typeof proj4 !== 'undefined') {
-            try {
-                displayUTM = `${rawX.toFixed(0)} E, ${rawY.toFixed(0)} N`;
-                const coords = proj4(utm18S, wgs84, [rawX, rawY]);
-                finalLng = coords[0];
-                finalLat = coords[1];
-            } catch (e) {}
-        }
-        // Caso 2: Coordenadas UTM desfasadas en columnas de fotos
-        else if (numImgBefore && numImgAfter && numImgBefore > 100000 && numImgAfter > 1000000 && typeof proj4 !== 'undefined') {
-            try {
-                displayUTM = `${numImgBefore.toFixed(0)} E, ${numImgAfter.toFixed(0)} N`;
-                const coords = proj4(utm18S, wgs84, [numImgBefore, numImgAfter]);
-                finalLng = coords[0];
-                finalLat = coords[1];
-            } catch (e) {}
-        }
-        // Caso 3: Grados WGS84 con auto-corrección de inversión para Chile / Temuco (Lat ~-38, Lng ~-72)
-        else if (rawX && rawY && Math.abs(rawX) <= 180 && Math.abs(rawY) <= 180) {
-            let latCand = rawY;
-            let lngCand = rawX;
+        // Recolectar todos los números de la fila
+        const allNumbers = [];
+        keys.forEach(k => {
+            const num = parseNum(row[k]);
+            if (num !== null) allNumbers.push(num);
+        });
 
-            // Si se invirtió Latitud y Longitud
-            if (latCand < -60 && lngCand > -50 && lngCand < -20) {
-                latCand = rawX;
-                lngCand = rawY;
-            } else if (lngCand < -60 && latCand > -50 && latCand < -20) {
-                latCand = rawY;
-                lngCand = rawX;
+        let detectedUtmE = null;
+        let detectedUtmN = null;
+
+        let rawX = parseNum(colLng ? row[colLng] : row[colX]);
+        let rawY = parseNum(colLat ? row[colLat] : row[colY]);
+        const numImgBefore = parseNum(row[colImgBefore]);
+        const numImgAfter = parseNum(row[colImgAfter]);
+
+        // Prioridad 1: Coordenadas en columnas estándar X/Y
+        if (rawX && rawY && rawX > 100000 && rawY > 1000000) {
+            detectedUtmE = rawX;
+            detectedUtmN = rawY;
+        }
+        // Prioridad 2: Coordenadas UTM desfasadas en columnas de fotos
+        else if (numImgBefore && numImgAfter && numImgBefore > 100000 && numImgAfter > 1000000) {
+            detectedUtmE = numImgBefore;
+            detectedUtmN = numImgAfter;
+        }
+        // Prioridad 3: Buscar par UTM (Este ~600k-850k, Norte ~5.6M-5.9M) en cualquier columna
+        else {
+            for (let i = 0; i < allNumbers.length; i++) {
+                for (let j = 0; j < allNumbers.length; j++) {
+                    if (allNumbers[i] >= 600000 && allNumbers[i] <= 850000 && allNumbers[j] >= 5600000 && allNumbers[j] <= 5900000) {
+                        detectedUtmE = allNumbers[i];
+                        detectedUtmN = allNumbers[j];
+                        break;
+                    }
+                }
+                if (detectedUtmE) break;
+            }
+        }
+
+        if (detectedUtmE && detectedUtmN && typeof proj4 !== 'undefined') {
+            try {
+                displayUTM = `${detectedUtmE.toFixed(0)} E, ${detectedUtmN.toFixed(0)} N`;
+                const coords = proj4(utm18S, wgs84, [detectedUtmE, detectedUtmN]);
+                finalLng = coords[0];
+                finalLat = coords[1];
+            } catch (e) {}
+        }
+
+        // Prioridad 4: Si no hubo UTM, buscar par WGS84 (Lat ~-39 a -37, Lng ~-74 a -71)
+        if (finalLat === null || finalLng === null) {
+            let detectedLat = null;
+            let detectedLng = null;
+
+            if (rawX && rawY && Math.abs(rawX) <= 180 && Math.abs(rawY) <= 180) {
+                detectedLat = (rawY < -30 && rawY > -50) ? rawY : rawX;
+                detectedLng = (rawX < -60 && rawX > -80) ? rawX : rawY;
+            } else {
+                for (let i = 0; i < allNumbers.length; i++) {
+                    for (let j = 0; j < allNumbers.length; j++) {
+                        if (allNumbers[i] >= -40 && allNumbers[i] <= -37 && allNumbers[j] >= -74 && allNumbers[j] <= -71) {
+                            detectedLat = allNumbers[i];
+                            detectedLng = allNumbers[j];
+                            break;
+                        }
+                    }
+                    if (detectedLat) break;
+                }
             }
 
-            finalLat = latCand;
-            finalLng = lngCand;
-
-            if (typeof proj4 !== 'undefined') {
-                try {
-                    const utmCoords = proj4(wgs84, utm18S, [finalLng, finalLat]);
-                    displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
-                } catch (e) {
-                    displayUTM = `${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}`;
+            if (detectedLat && detectedLng) {
+                finalLat = detectedLat;
+                finalLng = detectedLng;
+                if (typeof proj4 !== 'undefined') {
+                    try {
+                        const utmCoords = proj4(wgs84, utm18S, [finalLng, finalLat]);
+                        displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
+                    } catch (e) {
+                        displayUTM = `${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}`;
+                    }
                 }
-            } else {
-                displayUTM = `${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}`;
             }
         }
 
         // Validar que el punto sea válido y esté dentro de la Región / Chile
         if (finalLat !== null && finalLng !== null && !isNaN(finalLat) && !isNaN(finalLng)) {
-            // Filtrar coordenadas absurdas fuera de Chile
             if (finalLat < -60 || finalLat > -15 || finalLng < -80 || finalLng > -60) {
                 return;
             }
@@ -591,9 +648,6 @@ function processEntries(data) {
 
             const Nombre = row[colName];
             const Observaciones = row[colObs];
-            const URL_Antes = isUrl(row[colImgBefore]) ? transformDriveUrl(row[colImgBefore]) : null;
-            const URL_Despues = isUrl(row[colImgAfter]) ? transformDriveUrl(row[colImgAfter]) : null;
-            const URL_Generica = isUrl(row[colImgGeneric]) ? transformDriveUrl(row[colImgGeneric]) : null;
 
             const Fecha = row[colDate];
             const Modificacion = row[colMod];
