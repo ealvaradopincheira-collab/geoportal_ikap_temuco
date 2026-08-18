@@ -298,7 +298,7 @@ async function loadTerritorialData() {
     }
 }
 
-// LÓGICA RESTAURADA: Mapeo exacto de las columnas de terreno
+// LÓGICA RESTAURADA Y ROBUSTA: Mapeo exacto y auto-corrección de coordenadas
 function processEntries(data) {
     markerLayer.clearLayers();
     if (markerClusterTerreno) markerClusterTerreno.clearLayers();
@@ -308,6 +308,17 @@ function processEntries(data) {
 
     const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
     const wgs84 = "EPSG:4326";
+
+    const parseNum = (val) => {
+        if (val === undefined || val === null || String(val).trim() === "") return null;
+        const num = parseFloat(String(val).replace(',', '.'));
+        return isNaN(num) ? null : num;
+    };
+
+    const isUrl = (val) => {
+        if (!val || typeof val !== 'string') return false;
+        return val.includes('http://') || val.includes('https://') || val.includes('drive.google.com');
+    };
 
     data.forEach((row) => {
         const keys = Object.keys(row);
@@ -327,59 +338,87 @@ function processEntries(data) {
         const colMod = keys.find(k => k.toLowerCase().includes('modificaci') || k.toLowerCase().includes('tipo') || k.toLowerCase().includes('trabajo'));
         const colId = keys.find(k => k.toLowerCase().includes('número') || k.toLowerCase().includes('nº') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('señaletica') || k.toLowerCase().includes('código'));
 
-        let valLatRaw = (row[colLat] && String(row[colLat]).trim() !== "") ? row[colLat] : row[colY];
-        let valLngRaw = (row[colLng] && String(row[colLng]).trim() !== "") ? row[colLng] : row[colX];
+        let rawX = parseNum(colLng ? row[colLng] : row[colX]);
+        let rawY = parseNum(colLat ? row[colLat] : row[colY]);
 
-        if (valLatRaw === undefined || valLatRaw === null || valLatRaw === "" ||
-            valLngRaw === undefined || valLngRaw === null || valLngRaw === "") return;
+        // Verificar si las columnas de fotos contienen números UTM por desfase de API/Form
+        const numImgBefore = parseNum(row[colImgBefore]);
+        const numImgAfter = parseNum(row[colImgAfter]);
 
-        let valLat = parseFloat(String(valLatRaw).replace(',', '.'));
-        let valLng = parseFloat(String(valLngRaw).replace(',', '.'));
+        let finalLat = null;
+        let finalLng = null;
+        let displayUTM = "No disponible";
 
-        const Nombre = row[colName];
-        const Observaciones = row[colObs];
-        const URL_Antes = transformDriveUrl(row[colImgBefore]);
-        const URL_Despues = transformDriveUrl(row[colImgAfter]);
-        const URL_Generica = transformDriveUrl(row[colImgGeneric]);
-
-        const Fecha = row[colDate];
-        const Modificacion = row[colMod];
-        const NumeroID = row[colId];
-
-        let finalLat, finalLng, displayUTM = "";
-
-        if (Math.abs(valLat) > 1000 || Math.abs(valLng) > 1000) {
-            if (typeof proj4 === 'undefined') return;
-            displayUTM = `${valLng.toFixed(0)} E, ${valLat.toFixed(0)} N`;
+        // Caso 1: Coordenadas UTM estándar en X/Y (Este ~600k-800k, Norte ~5.6M-5.8M)
+        if (rawX && rawY && rawX > 100000 && rawY > 1000000 && typeof proj4 !== 'undefined') {
             try {
-                const coords = proj4(utm18S, wgs84, [valLng, valLat]);
+                displayUTM = `${rawX.toFixed(0)} E, ${rawY.toFixed(0)} N`;
+                const coords = proj4(utm18S, wgs84, [rawX, rawY]);
                 finalLng = coords[0];
                 finalLat = coords[1];
-            } catch (e) {
-                return;
+            } catch (e) {}
+        }
+        // Caso 2: Coordenadas UTM desfasadas en columnas de fotos
+        else if (numImgBefore && numImgAfter && numImgBefore > 100000 && numImgAfter > 1000000 && typeof proj4 !== 'undefined') {
+            try {
+                displayUTM = `${numImgBefore.toFixed(0)} E, ${numImgAfter.toFixed(0)} N`;
+                const coords = proj4(utm18S, wgs84, [numImgBefore, numImgAfter]);
+                finalLng = coords[0];
+                finalLat = coords[1];
+            } catch (e) {}
+        }
+        // Caso 3: Grados WGS84 con auto-corrección de inversión para Chile / Temuco (Lat ~-38, Lng ~-72)
+        else if (rawX && rawY && Math.abs(rawX) <= 180 && Math.abs(rawY) <= 180) {
+            let latCand = rawY;
+            let lngCand = rawX;
+
+            // Si se invirtió Latitud y Longitud
+            if (latCand < -60 && lngCand > -50 && lngCand < -20) {
+                latCand = rawX;
+                lngCand = rawY;
+            } else if (lngCand < -60 && latCand > -50 && latCand < -20) {
+                latCand = rawY;
+                lngCand = rawX;
             }
-        } else {
-            finalLat = valLat;
-            finalLng = valLng;
+
+            finalLat = latCand;
+            finalLng = lngCand;
+
             if (typeof proj4 !== 'undefined') {
                 try {
-                    const utmCoords = proj4(wgs84, utm18S, [valLng, valLat]);
+                    const utmCoords = proj4(wgs84, utm18S, [finalLng, finalLat]);
                     displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
                 } catch (e) {
-                    displayUTM = `${valLat.toFixed(6)}, ${valLng.toFixed(6)}`;
+                    displayUTM = `${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}`;
                 }
             } else {
-                displayUTM = `${valLat.toFixed(6)}, ${valLng.toFixed(6)}`;
+                displayUTM = `${finalLat.toFixed(6)}, ${finalLng.toFixed(6)}`;
             }
         }
 
-        if (!isNaN(finalLat) && !isNaN(finalLng)) {
-            const colMacro = keys.find(k => k.toUpperCase().trim() === 'MACROSECTOR');
+        // Validar que el punto sea válido y esté dentro de la Región / Chile
+        if (finalLat !== null && finalLng !== null && !isNaN(finalLat) && !isNaN(finalLng)) {
+            // Filtrar coordenadas absurdas fuera de Chile
+            if (finalLat < -60 || finalLat > -15 || finalLng < -80 || finalLng > -60) {
+                return;
+            }
+
+            const colMacro = keys.find(k => k.toLowerCase().includes('macrosect') || k.toLowerCase().includes('sector'));
             const macrozona = colMacro ? (row[colMacro] || 'Sin Sector') : 'Sin Sector';
 
             if (!stats.sectores[macrozona]) stats.sectores[macrozona] = { terreno: 0, base: 0 };
             stats.sectores[macrozona].terreno++;
             stats.global.terreno++;
+
+            const Nombre = row[colName];
+            const Observaciones = row[colObs];
+            const URL_Antes = isUrl(row[colImgBefore]) ? transformDriveUrl(row[colImgBefore]) : null;
+            const URL_Despues = isUrl(row[colImgAfter]) ? transformDriveUrl(row[colImgAfter]) : null;
+            const URL_Generica = isUrl(row[colImgGeneric]) ? transformDriveUrl(row[colImgGeneric]) : null;
+
+            const Fecha = row[colDate];
+            const Modificacion = row[colMod];
+            const NumeroID = row[colId];
 
             let imagesHTML = '';
             if (URL_Antes || URL_Despues) {
@@ -449,7 +488,7 @@ function processEntries(data) {
     populateSectorDropdown();
     updateDashboard('ALL');
 
-    if (data.length > 0 && !CONFIG.SHEET_CSV_URL.includes('PLACEHOLDER')) {
+    if (markerLayer.getLayers().length > 0 && !CONFIG.SHEET_CSV_URL.includes('PLACEHOLDER')) {
         const group = new L.featureGroup(markerLayer.getLayers());
         map.fitBounds(group.getBounds().pad(0.1));
     }
@@ -572,7 +611,7 @@ async function loadCatastro() {
         pointGeojson.features.forEach(f => {
             const props = f.properties;
             const keys = Object.keys(props);
-            const colMacro = keys.find(k => k.toUpperCase().trim() === 'MACROSECTOR');
+            const colMacro = keys.find(k => k.toLowerCase().includes('macrosect') || k.toLowerCase().includes('sector'));
             const macrozona = colMacro ? (props[colMacro] || 'Sin Sector') : 'Sin Sector';
 
             if (!stats.sectores[macrozona]) stats.sectores[macrozona] = { terreno: 0, base: 0 };
