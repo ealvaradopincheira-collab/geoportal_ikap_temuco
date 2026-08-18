@@ -11,6 +11,106 @@ const CONFIG = {
     REFRESH_INTERVAL: 0
 };
 
+// --- USUARIOS AUTORIZADOS DE CUADRILLAS ---
+const AUTH_USERS = [
+    { group: "GRUPO 1", email: "mantenciontemucog1@gmail.com", pass: "ikap1234" },
+    { group: "GRUPO 2", email: "mantenciontemucog2@gmail.com", pass: "ikap1234" },
+    { group: "GRUPO 3", email: "mantenciontemucog3@gmail.com", pass: "ikap1234" },
+    { group: "GRUPO 4", email: "mantenciontemucog4@gmail.com", pass: "ikap1234" }
+];
+
+// --- GESTIÓN DE SESIÓN DE CUADRILLAS ---
+function getLoggedInUser() {
+    try {
+        const stored = localStorage.getItem('ikap_auth_user');
+        return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function setLoggedInUser(user) {
+    if (user) {
+        localStorage.setItem('ikap_auth_user', JSON.stringify(user));
+    } else {
+        localStorage.removeItem('ikap_auth_user');
+    }
+    renderAuthUI();
+}
+
+function renderAuthUI() {
+    const authSection = document.getElementById('authSection');
+    if (!authSection) return;
+    const user = getLoggedInUser();
+    if (user) {
+        authSection.innerHTML = `
+            <div class="user-session-badge">
+                <span class="user-status-dot"></span>
+                <span class="user-group-name">${user.group}</span>
+                <button class="logout-btn" onclick="logoutUser()" title="Cerrar sesión (${user.email})">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        `;
+    } else {
+        authSection.innerHTML = `
+            <button class="login-trigger-btn" onclick="openLoginModal()">
+                <i data-lucide="user-check"></i>
+                <span>Ingreso Cuadrilla</span>
+            </button>
+        `;
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function openLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) {
+        modal.classList.add('active');
+        const err = document.getElementById('loginErrorMsg');
+        if (err) {
+            err.textContent = '';
+            err.style.display = 'none';
+        }
+    }
+}
+
+function closeLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function fillSelectedEmail(email) {
+    const input = document.getElementById('loginEmail');
+    if (input && email) input.value = email;
+}
+
+function handleLoginSubmit(event) {
+    event.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const pass = document.getElementById('loginPassword').value.trim();
+    const errEl = document.getElementById('loginErrorMsg');
+
+    const matchedUser = AUTH_USERS.find(u => u.email.toLowerCase() === email && u.pass === pass);
+    if (matchedUser) {
+        setLoggedInUser({
+            group: matchedUser.group,
+            email: matchedUser.email,
+            loginTime: new Date().toISOString()
+        });
+        closeLoginModal();
+    } else {
+        if (errEl) {
+            errEl.textContent = 'Credenciales inválidas. Verifique el correo o contraseña del grupo.';
+            errEl.style.display = 'block';
+        }
+    }
+}
+
+function logoutUser() {
+    setLoggedInUser(null);
+}
+
 // --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
@@ -162,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         markerClusterBase = L.markerClusterGroup({ disableClusteringAtZoom: 18 });
     }
 
+    renderAuthUI();
     initMap();
     initSidebar();
     initStatsControl();
@@ -490,6 +591,24 @@ function processEntries(data) {
             const Modificacion = row[colMod];
             const NumeroID = row[colId];
 
+            const colEmail = keys.find(k => k.toLowerCase().includes('correo') || k.toLowerCase().includes('email'));
+            const colWorker = keys.find(k => k.toLowerCase().includes('trabajador') || k.toLowerCase().includes('cuadrilla') || k.toLowerCase().includes('grupo'));
+
+            const Email = colEmail && row[colEmail] ? String(row[colEmail]).trim() : '';
+            const Trabajador = colWorker && row[colWorker] ? String(row[colWorker]).trim() : '';
+
+            let grupoEtiqueta = '';
+            if (Email) {
+                const elow = Email.toLowerCase();
+                if (elow.includes('g1') || elow.includes('grupo 1') || elow.includes('mantenciontemucog1')) grupoEtiqueta = 'GRUPO 1';
+                else if (elow.includes('g2') || elow.includes('grupo 2') || elow.includes('mantenciontemucog2')) grupoEtiqueta = 'GRUPO 2';
+                else if (elow.includes('g3') || elow.includes('grupo 3') || elow.includes('mantenciontemucog3')) grupoEtiqueta = 'GRUPO 3';
+                else if (elow.includes('g4') || elow.includes('grupo 4') || elow.includes('mantenciontemucog4')) grupoEtiqueta = 'GRUPO 4';
+            }
+            if (!grupoEtiqueta && Trabajador) {
+                grupoEtiqueta = Trabajador;
+            }
+
             let imagesHTML = '';
             if (URL_Antes || URL_Despues) {
                 imagesHTML = `
@@ -526,6 +645,7 @@ function processEntries(data) {
                     ${imagesHTML}
                     <div class="popup-details">
                         ${Fecha ? `<div class="detail-item"><strong><i data-lucide="calendar"></i> Fecha:</strong><span>${Fecha}</span></div>` : ''}
+                        ${grupoEtiqueta ? `<div class="detail-item"><strong><i data-lucide="users"></i> Cuadrilla:</strong><span>${grupoEtiqueta} ${Email ? `<small style="color:var(--text-muted); font-size:0.75rem;">(${Email})</small>` : ''}</span></div>` : ''}
                         ${Modificacion ? `<div class="detail-item"><strong><i data-lucide="activity"></i> Tipo:</strong><span>${Modificacion}</span></div>` : ''}
                         ${Observaciones ? `<div class="detail-item"><strong><i data-lucide="info"></i> Obs:</strong><p>${Observaciones}</p></div>` : ''}
                         <div class="coord-badge"><i data-lucide="map-pin"></i> UTM ${displayUTM}</div>
