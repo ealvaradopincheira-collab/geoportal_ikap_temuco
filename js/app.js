@@ -170,14 +170,17 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCatastro();
 });
 
+let baseLayerEsri;
+let baseLayerOsm;
+
 function initMap() {
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
-    const esriWorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' });
+    baseLayerOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+    baseLayerEsri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' });
 
     map = L.map('map', {
         center: CONFIG.MAP_CENTER,
         zoom: CONFIG.INITIAL_ZOOM,
-        layers: [esriWorldImagery],
+        layers: [baseLayerEsri],
         zoomControl: false // Desactivamos el predeterminado
     });
 
@@ -194,12 +197,6 @@ function initMap() {
     // Lo movemos a la derecha para que no estorbe a la barra lateral
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    baseMaps = {
-        "Terreno (Esri)": esriWorldImagery,
-        "Calles (OSM)": osm
-    };
-
-    updateLayerControl();
     markerLayer.addTo(map);
 }
 
@@ -211,40 +208,92 @@ function switchTab(tabId) {
     const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
     if (btn) btn.classList.add('active');
 
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
     // Si la pestaña es la de estadísticas, redimensionar el gráfico
     if (tabId === 'tab-stats' && sectorChart) {
         setTimeout(() => sectorChart.resize(), 100);
     }
 }
 
-function updateLayerControl() {
-    if (layerControl) map.removeControl(layerControl);
-
-    overlayMaps = {
-        "Macrosectores": macrosectoresLayer,
-        "Catastro Base": useClustering ? markerClusterBase : catastroLayer,
-        "Catastro en Terreno": useClustering ? markerClusterTerreno : markerLayer
-    };
-
-    layerControl = L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
-
-    // Integrar el control de capas directamente en la barra lateral
-    const container = document.getElementById('layer-control-container');
-    if (container) {
-        container.innerHTML = '';
-        container.appendChild(layerControl.getContainer());
+function setBaseMap(type) {
+    document.querySelectorAll('.basemap-btn').forEach(btn => btn.classList.remove('active'));
+    if (type === 'esri') {
+        if (map.hasLayer(baseLayerOsm)) map.removeLayer(baseLayerOsm);
+        if (!map.hasLayer(baseLayerEsri)) map.addLayer(baseLayerEsri);
+        const btn = document.getElementById('btnBaseEsri');
+        if (btn) btn.classList.add('active');
+    } else if (type === 'osm') {
+        if (map.hasLayer(baseLayerEsri)) map.removeLayer(baseLayerEsri);
+        if (!map.hasLayer(baseLayerOsm)) map.addLayer(baseLayerOsm);
+        const btn = document.getElementById('btnBaseOsm');
+        if (btn) btn.classList.add('active');
     }
 }
 
-function initStatsControl() {
-    const toggle = document.getElementById('clusterToggle');
-    if (toggle) {
-        toggle.addEventListener('change', (e) => {
-            useClustering = e.target.checked;
-            toggleClustering();
-        });
+function toggleLayer(layerKey, isVisible) {
+    if (layerKey === 'terreno') {
+        if (isVisible) {
+            if (useClustering) {
+                if (markerClusterTerreno && !map.hasLayer(markerClusterTerreno)) map.addLayer(markerClusterTerreno);
+            } else {
+                if (!map.hasLayer(markerLayer)) map.addLayer(markerLayer);
+            }
+        } else {
+            if (markerClusterTerreno && map.hasLayer(markerClusterTerreno)) map.removeLayer(markerClusterTerreno);
+            if (map.hasLayer(markerLayer)) map.removeLayer(markerLayer);
+        }
+    } else if (layerKey === 'base') {
+        if (isVisible) {
+            if (useClustering) {
+                if (markerClusterBase && !map.hasLayer(markerClusterBase)) map.addLayer(markerClusterBase);
+            } else {
+                if (!map.hasLayer(catastroLayer)) map.addLayer(catastroLayer);
+            }
+        } else {
+            if (markerClusterBase && map.hasLayer(markerClusterBase)) map.removeLayer(markerClusterBase);
+            if (map.hasLayer(catastroLayer)) map.removeLayer(catastroLayer);
+        }
+    } else if (layerKey === 'macro') {
+        if (isVisible) {
+            if (!map.hasLayer(macrosectoresLayer)) map.addLayer(macrosectoresLayer);
+        } else {
+            if (map.hasLayer(macrosectoresLayer)) map.removeLayer(macrosectoresLayer);
+        }
     }
+}
 
+function toggleClustering(enabled) {
+    useClustering = (enabled !== undefined) ? enabled : (document.getElementById('clusterToggle') ? document.getElementById('clusterToggle').checked : false);
+
+    const isTerrenoActive = document.getElementById('layerToggleTerreno') ? document.getElementById('layerToggleTerreno').checked : true;
+    const isBaseActive = document.getElementById('layerToggleBase') ? document.getElementById('layerToggleBase').checked : true;
+
+    // Remover de ambos modos
+    if (map.hasLayer(catastroLayer)) map.removeLayer(catastroLayer);
+    if (map.hasLayer(markerLayer)) map.removeLayer(markerLayer);
+    if (markerClusterBase && map.hasLayer(markerClusterBase)) map.removeLayer(markerClusterBase);
+    if (markerClusterTerreno && map.hasLayer(markerClusterTerreno)) map.removeLayer(markerClusterTerreno);
+
+    // Montar según el modo
+    if (useClustering) {
+        if (isBaseActive && markerClusterBase) map.addLayer(markerClusterBase);
+        if (isTerrenoActive && markerClusterTerreno) map.addLayer(markerClusterTerreno);
+    } else {
+        if (isBaseActive) map.addLayer(catastroLayer);
+        if (isTerrenoActive) map.addLayer(markerLayer);
+    }
+}
+
+function updateLayerCounts() {
+    const elTerreno = document.getElementById('layer-count-terreno');
+    if (elTerreno) elTerreno.textContent = `${stats.global.terreno} registros`;
+
+    const elBase = document.getElementById('layer-count-base');
+    if (elBase) elBase.textContent = `${stats.global.base.toLocaleString()} registros`;
+}
+
+function initStatsControl() {
     const sectorFilter = document.getElementById('sectorFilter');
     if (sectorFilter) {
         sectorFilter.addEventListener('change', (e) => {
@@ -253,26 +302,6 @@ function initStatsControl() {
     }
 
     initChart();
-}
-
-function toggleClustering() {
-    const baseVisible = map.hasLayer(catastroLayer) || (markerClusterBase && map.hasLayer(markerClusterBase));
-    const terrenoVisible = map.hasLayer(markerLayer) || (markerClusterTerreno && map.hasLayer(markerClusterTerreno));
-
-    map.removeLayer(catastroLayer);
-    map.removeLayer(markerLayer);
-    if (markerClusterBase) map.removeLayer(markerClusterBase);
-    if (markerClusterTerreno) map.removeLayer(markerClusterTerreno);
-
-    if (useClustering) {
-        if (baseVisible && markerClusterBase) map.addLayer(markerClusterBase);
-        if (terrenoVisible && markerClusterTerreno) map.addLayer(markerClusterTerreno);
-    } else {
-        if (baseVisible) map.addLayer(catastroLayer);
-        if (terrenoVisible) map.addLayer(markerLayer);
-    }
-
-    updateLayerControl();
 }
 
 function initSidebar() {
@@ -529,6 +558,16 @@ function processEntries(data) {
 
     populateSectorDropdown();
     updateDashboard('ALL');
+    updateLayerCounts();
+
+    const isTerrenoActive = document.getElementById('layerToggleTerreno') ? document.getElementById('layerToggleTerreno').checked : true;
+    if (isTerrenoActive) {
+        if (!useClustering) {
+            if (!map.hasLayer(markerLayer)) map.addLayer(markerLayer);
+        } else if (markerClusterTerreno && !map.hasLayer(markerClusterTerreno)) {
+            map.addLayer(markerClusterTerreno);
+        }
+    }
 
     if (markerLayer.getLayers().length > 0 && !CONFIG.SHEET_CSV_URL.includes('PLACEHOLDER')) {
         const group = new L.featureGroup(markerLayer.getLayers());
@@ -579,7 +618,10 @@ async function loadMacrosectores() {
             }
         }
         macrosectoresLayer.addData(geojson);
-        macrosectoresLayer.addTo(map);
+        const isMacroActive = document.getElementById('layerToggleMacro') ? document.getElementById('layerToggleMacro').checked : true;
+        if (isMacroActive) {
+            macrosectoresLayer.addTo(map);
+        }
 
     } catch (err) { console.error("Error al cargar Macrosectores:", err); }
 }
@@ -669,11 +711,15 @@ async function loadCatastro() {
 
         populateSectorDropdown();
         updateDashboard('ALL');
+        updateLayerCounts();
 
-        if (!useClustering) {
-            catastroLayer.addTo(map);
-        } else if (markerClusterBase && !map.hasLayer(markerClusterBase)) {
-            map.addLayer(markerClusterBase);
+        const isBaseActive = document.getElementById('layerToggleBase') ? document.getElementById('layerToggleBase').checked : true;
+        if (isBaseActive) {
+            if (!useClustering) {
+                if (!map.hasLayer(catastroLayer)) catastroLayer.addTo(map);
+            } else if (markerClusterBase && !map.hasLayer(markerClusterBase)) {
+                map.addLayer(markerClusterBase);
+            }
         }
 
     } catch (err) {

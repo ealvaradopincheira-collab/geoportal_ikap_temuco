@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-    <link rel="stylesheet" href="css/style.css?v=7.2.1">
+    <link rel="stylesheet" href="css/style.css?v=7.3.0">
 
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -71,13 +71,74 @@
             <div class="sidebar-content">
                 <div id="tab-layers" class="tab-pane active">
                     <div class="sidebar-section">
-                        <h3>Capas del Proyecto</h3>
-                        <div id="layer-control-container"></div>
+                        <h3>Mapa Base</h3>
+                        <div class="basemap-selector">
+                            <button type="button" class="basemap-btn active" id="btnBaseEsri" onclick="setBaseMap('esri')">
+                                <i data-lucide="satellite"></i> Satelital
+                            </button>
+                            <button type="button" class="basemap-btn" id="btnBaseOsm" onclick="setBaseMap('osm')">
+                                <i data-lucide="map"></i> Calles
+                            </button>
+                        </div>
+                    </div>
 
-                        <div class="control-item" style="margin-top: 2rem;">
-                            <span>Agrupar Señales (Cluster)</span>
+                    <div class="sidebar-section">
+                        <h3>Capas Operativas</h3>
+                        <div class="layer-item">
+                            <div class="layer-info">
+                                <span class="layer-dot terreno"></span>
+                                <div>
+                                    <span class="layer-name">Catastro en Terreno</span>
+                                    <span class="layer-sub" id="layer-count-terreno">0 registros</span>
+                                </div>
+                            </div>
                             <label class="switch">
-                                <input type="checkbox" id="clusterToggle">
+                                <input type="checkbox" id="layerToggleTerreno" checked onchange="toggleLayer('terreno', this.checked)">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="layer-item">
+                            <div class="layer-info">
+                                <span class="layer-dot base"></span>
+                                <div>
+                                    <span class="layer-name">Catastro Base</span>
+                                    <span class="layer-sub" id="layer-count-base">0 registros</span>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="layerToggleBase" checked onchange="toggleLayer('base', this.checked)">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="layer-item">
+                            <div class="layer-info">
+                                <span class="layer-dot macrosect"></span>
+                                <div>
+                                    <span class="layer-name">Macrosectores</span>
+                                    <span class="layer-sub">Límites territoriales</span>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="layerToggleMacro" checked onchange="toggleLayer('macro', this.checked)">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h3>Opciones de Visualización</h3>
+                        <div class="layer-item">
+                            <div class="layer-info">
+                                <span class="layer-icon-wrapper"><i data-lucide="boxes"></i></span>
+                                <div>
+                                    <span class="layer-name">Agrupar Puntos</span>
+                                    <span class="layer-sub">Clustering dinámico</span>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="clusterToggle" onchange="toggleClustering(this.checked)">
                                 <span class="slider round"></span>
                             </label>
                         </div>
@@ -141,7 +202,7 @@
     <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script src="js/app.js?v=7.2.1"></script>
+    <script src="js/app.js?v=7.3.0"></script>
     <script>
         // Initialize Lucide icons
         lucide.createIcons();
