@@ -11,114 +11,6 @@ const CONFIG = {
     REFRESH_INTERVAL: 0
 };
 
-// --- USUARIOS AUTORIZADOS (ADMINISTRACIÓN Y CUADRILLAS) ---
-const AUTH_USERS = [
-    // Administradores
-    { group: "ADMIN", role: "admin", name: "IKAP", email: "ikap.temuco@gmail.com", pass: "ikap1234" },
-    { group: "ADMIN", role: "admin", name: "Elías Alvarado", email: "ealvaradopincheira@gmail.com", pass: "ikap1234" },
-    // Cuadrillas de Terreno
-    { group: "GRUPO 1", role: "cuadrilla", name: "Cuadrilla 1", email: "mantenciontemucog1@gmail.com", pass: "ikap1234" },
-    { group: "GRUPO 2", role: "cuadrilla", name: "Cuadrilla 2", email: "mantenciontemucog2@gmail.com", pass: "ikap1234" },
-    { group: "GRUPO 3", role: "cuadrilla", name: "Cuadrilla 3", email: "mantenciontemucog3@gmail.com", pass: "ikap1234" },
-    { group: "GRUPO 4", role: "cuadrilla", name: "Cuadrilla 4", email: "mantenciontemucog4@gmail.com", pass: "ikap1234" }
-];
-
-// --- GESTIÓN DE SESIÓN DE USUARIOS Y CUADRILLAS ---
-function getLoggedInUser() {
-    try {
-        const stored = localStorage.getItem('ikap_auth_user');
-        return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-        return null;
-    }
-}
-
-function setLoggedInUser(user) {
-    if (user) {
-        localStorage.setItem('ikap_auth_user', JSON.stringify(user));
-    } else {
-        localStorage.removeItem('ikap_auth_user');
-    }
-    renderAuthUI();
-}
-
-function renderAuthUI() {
-    const authSection = document.getElementById('authSection');
-    if (!authSection) return;
-    const user = getLoggedInUser();
-    if (user) {
-        const isAdmin = user.role === 'admin' || user.group === 'ADMIN';
-        const labelText = isAdmin ? `ADMIN: ${user.name || user.email.split('@')[0]}` : user.group;
-        authSection.innerHTML = `
-            <div class="user-session-badge ${isAdmin ? 'admin-badge' : ''}" title="${user.email}">
-                <span class="user-status-dot ${isAdmin ? 'admin-dot' : ''}"></span>
-                <span class="user-group-name">${labelText}</span>
-                <button class="logout-btn" onclick="logoutUser()" title="Cerrar sesión (${user.email})">
-                    <i data-lucide="log-out"></i>
-                </button>
-            </div>
-        `;
-    } else {
-        authSection.innerHTML = `
-            <button class="login-trigger-btn" onclick="openLoginModal()">
-                <i data-lucide="user-check"></i>
-                <span>Ingreso / Login</span>
-            </button>
-        `;
-    }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-function openLoginModal() {
-    const modal = document.getElementById('loginModal');
-    if (modal) {
-        modal.classList.add('active');
-        const err = document.getElementById('loginErrorMsg');
-        if (err) {
-            err.textContent = '';
-            err.style.display = 'none';
-        }
-    }
-}
-
-function closeLoginModal() {
-    const modal = document.getElementById('loginModal');
-    if (modal) modal.classList.remove('active');
-}
-
-function fillSelectedEmail(email) {
-    const input = document.getElementById('loginEmail');
-    if (input && email) input.value = email;
-}
-
-function handleLoginSubmit(event) {
-    event.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-    const pass = document.getElementById('loginPassword').value.trim();
-    const errEl = document.getElementById('loginErrorMsg');
-
-    const matchedUser = AUTH_USERS.find(u => u.email.toLowerCase() === email && u.pass === pass);
-    if (matchedUser) {
-        setLoggedInUser({
-            group: matchedUser.group,
-            role: matchedUser.role,
-            name: matchedUser.name,
-            email: matchedUser.email,
-            loginTime: new Date().toISOString()
-        });
-        closeLoginModal();
-    } else {
-        if (errEl) {
-            errEl.textContent = 'Credenciales inválidas. Verifique el correo o contraseña.';
-            errEl.style.display = 'block';
-        }
-    }
-}
-
-function logoutUser() {
-    setLoggedInUser(null);
-}
-
 // --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
@@ -270,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
         markerClusterBase = L.markerClusterGroup({ disableClusteringAtZoom: 18 });
     }
 
-    renderAuthUI();
     initMap();
     initSidebar();
     initStatsControl();

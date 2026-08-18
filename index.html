@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-    <link rel="stylesheet" href="css/style.css?v=7.4.2">
+    <link rel="stylesheet" href="css/style.css?v=7.5.0">
 
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -40,7 +40,6 @@
                 </div>
             </div>
             <div class="header-actions">
-                <div id="authSection" class="auth-section"></div>
                 <div class="status-indicator">
                     <span class="dot"></span>
                     En Vivo
@@ -195,52 +194,6 @@
         <div id="map"></div>
     </main>
 
-    <!-- Modal de Autenticación de Cuadrillas -->
-    <div id="loginModal" class="login-modal-overlay">
-        <div class="login-modal-card">
-            <button type="button" class="modal-close-btn" onclick="closeLoginModal()">
-                <i data-lucide="x"></i>
-            </button>
-            <div class="login-modal-header">
-                <div class="login-modal-icon">
-                    <i data-lucide="shield-check"></i>
-                </div>
-                <h3>Acceso Cuadrillas IKAP</h3>
-                <p>Identifíquese con su correo de grupo para registrar y actualizar datos.</p>
-            </div>
-            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
-                <div class="form-group">
-                    <label for="loginEmailSelect">Seleccionar Cuenta</label>
-                    <select id="loginEmailSelect" class="form-control" onchange="fillSelectedEmail(this.value)">
-                        <option value="">-- Seleccione Usuario o Cuadrilla --</option>
-                        <optgroup label="Administración">
-                            <option value="ikap.temuco@gmail.com">ADMIN - ikap.temuco@gmail.com (IKAP)</option>
-                            <option value="ealvaradopincheira@gmail.com">ADMIN - ealvaradopincheira@gmail.com (Elías Alvarado)</option>
-                        </optgroup>
-                        <optgroup label="Cuadrillas de Terreno">
-                            <option value="mantenciontemucog1@gmail.com">GRUPO 1 (mantenciontemucog1@gmail.com)</option>
-                            <option value="mantenciontemucog2@gmail.com">GRUPO 2 (mantenciontemucog2@gmail.com)</option>
-                            <option value="mantenciontemucog3@gmail.com">GRUPO 3 (mantenciontemucog3@gmail.com)</option>
-                            <option value="mantenciontemucog4@gmail.com">GRUPO 4 (mantenciontemucog4@gmail.com)</option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="loginEmail">Correo Electrónico</label>
-                    <input type="email" id="loginEmail" class="form-control" placeholder="ej: ikap.temuco@gmail.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Contraseña</label>
-                    <input type="password" id="loginPassword" class="form-control" placeholder="Ingrese contraseña" required>
-                </div>
-                <div id="loginErrorMsg" class="login-error-msg"></div>
-                <button type="submit" class="btn-submit-login">
-                    <i data-lucide="log-in"></i> Iniciar Sesión
-                </button>
-            </form>
-        </div>
-    </div>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
@@ -249,7 +202,7 @@
     <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script src="js/app.js?v=7.4.2"></script>
+    <script src="js/app.js?v=7.5.0"></script>
     <script>
         // Initialize Lucide icons
         lucide.createIcons();
