@@ -123,6 +123,16 @@ let catastroLayer = L.geoJSON(null, {
 // 2. CAPA MACROSECTORES (POLÍGONOS FANTASMAS PARA PERMITIR CLIC)
 let macrosectoresLayer = L.geoJSON(null, {
     interactive: false, // Permite que el clic traspase a los puntos
+    filter: function (feature) {
+        if (feature.properties) {
+            const name = String(feature.properties.macrosect || '').toUpperCase();
+            // Ocultar Macrosector Ñielol y sus variantes de codificación
+            if (name.includes('IELOL') || name.includes('ÑIELOL') || name.includes('NIELOL')) {
+                return false;
+            }
+        }
+        return true;
+    },
     style: function (feature) {
         return {
             color: "#f97316",
@@ -663,7 +673,8 @@ function populateSectorDropdown() {
     select.innerHTML = '<option value="ALL">Todos los Sectores</option>';
 
     Object.keys(stats.sectores).sort().forEach(sector => {
-        if (sector !== 'Sin Sector' && sector !== 'undefined') {
+        const sUpper = sector.toUpperCase();
+        if (sector !== 'Sin Sector' && sector !== 'undefined' && !sUpper.includes('IELOL') && !sUpper.includes('ÑIELOL') && !sUpper.includes('NIELOL')) {
             const option = document.createElement('option');
             option.value = sector;
             option.textContent = sector;
