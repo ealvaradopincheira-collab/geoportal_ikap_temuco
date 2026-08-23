@@ -273,8 +273,8 @@ def export_csv(points, out_path):
         writer.writeheader()
         
         for p in points:
-            path_antes = f"Datos Grupos Terreno/Chat de WhatsApp con G1 acrilica Fernando  Pedro G/{p['foto_antes']}" if p['foto_antes'] else ""
-            path_despues = f"Datos Grupos Terreno/Chat de WhatsApp con G1 acrilica Fernando  Pedro G/{p['foto_despues']}" if p['foto_despues'] else ""
+            path_antes = f"fotos/G1_wsp_antes/{p['foto_antes']}" if p['foto_antes'] else ""
+            path_despues = f"fotos/G1_wsp_despues/{p['foto_despues']}" if p['foto_despues'] else ""
             
             writer.writerow({
                 "Marca temporal": f"{p['fecha']} {p['hora']}:00",
@@ -296,8 +296,8 @@ def export_geojson(points, out_path):
     """Exporta los puntos a GeoJSON estándar para Leaflet sin textos de chat."""
     features = []
     for p in points:
-        path_antes = f"Datos Grupos Terreno/Chat de WhatsApp con G1 acrilica Fernando  Pedro G/{p['foto_antes']}" if p['foto_antes'] else ""
-        path_despues = f"Datos Grupos Terreno/Chat de WhatsApp con G1 acrilica Fernando  Pedro G/{p['foto_despues']}" if p['foto_despues'] else ""
+        path_antes = f"fotos/G1_wsp_antes/{p['foto_antes']}" if p['foto_antes'] else ""
+        path_despues = f"fotos/G1_wsp_despues/{p['foto_despues']}" if p['foto_despues'] else ""
         
         feat = {
             "type": "Feature",
