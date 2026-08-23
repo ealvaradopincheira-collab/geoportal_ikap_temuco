@@ -14,10 +14,11 @@ const CONFIG = {
 // --- VARIABLE GLOBAL DEL MAPA ---
 let map;
 let markerLayer = L.layerGroup();
+let g1MarkerLayer = L.layerGroup();
 
 // --- ESTADÍSTICAS Y CONTROL ---
 const stats = {
-    global: { meta: 15000, terreno: 0, base: 0 },
+    global: { meta: 15000, terreno: 0, base: 0, g1: 0 },
     sectores: {}
 };
 
@@ -25,6 +26,8 @@ let sectorChart = null;
 let useClustering = false;
 let markerClusterTerreno = null;
 let markerClusterBase = null;
+let markerClusterG1 = null;
+let allG1Features = [];
 let layerControl = null;
 let baseMaps = {};
 let overlayMaps = {};
@@ -160,12 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof L.markerClusterGroup !== 'undefined') {
         markerClusterTerreno = L.markerClusterGroup({ disableClusteringAtZoom: 18 });
         markerClusterBase = L.markerClusterGroup({ disableClusteringAtZoom: 18 });
+        markerClusterG1 = L.markerClusterGroup({ disableClusteringAtZoom: 18 });
     }
 
     initMap();
     initSidebar();
     initStatsControl();
     loadTerritorialData();
+    loadG1Data();
     loadMacrosectores();
     loadCatastro();
 });
@@ -191,6 +196,9 @@ function initMap() {
     map.createPane('catastroBasePane');
     map.getPane('catastroBasePane').style.zIndex = 450;
 
+    map.createPane('g1Pane');
+    map.getPane('g1Pane').style.zIndex = 480;
+
     map.createPane('terrenoPane');
     map.getPane('terrenoPane').style.zIndex = 500;
 
@@ -198,6 +206,7 @@ function initMap() {
     L.control.zoom({ position: 'topright' }).addTo(map);
 
     markerLayer.addTo(map);
+    g1MarkerLayer.addTo(map);
 }
 
 function switchTab(tabId) {
@@ -254,6 +263,17 @@ function toggleLayer(layerKey, isVisible) {
             if (markerClusterBase && map.hasLayer(markerClusterBase)) map.removeLayer(markerClusterBase);
             if (map.hasLayer(catastroLayer)) map.removeLayer(catastroLayer);
         }
+    } else if (layerKey === 'g1') {
+        if (isVisible) {
+            if (useClustering) {
+                if (markerClusterG1 && !map.hasLayer(markerClusterG1)) map.addLayer(markerClusterG1);
+            } else {
+                if (!map.hasLayer(g1MarkerLayer)) map.addLayer(g1MarkerLayer);
+            }
+        } else {
+            if (markerClusterG1 && map.hasLayer(markerClusterG1)) map.removeLayer(markerClusterG1);
+            if (map.hasLayer(g1MarkerLayer)) map.removeLayer(g1MarkerLayer);
+        }
     } else if (layerKey === 'macro') {
         if (isVisible) {
             if (!map.hasLayer(macrosectoresLayer)) map.addLayer(macrosectoresLayer);
@@ -268,20 +288,25 @@ function toggleClustering(enabled) {
 
     const isTerrenoActive = document.getElementById('layerToggleTerreno') ? document.getElementById('layerToggleTerreno').checked : true;
     const isBaseActive = document.getElementById('layerToggleBase') ? document.getElementById('layerToggleBase').checked : true;
+    const isG1Active = document.getElementById('layerToggleG1') ? document.getElementById('layerToggleG1').checked : true;
 
     // Remover de ambos modos
     if (map.hasLayer(catastroLayer)) map.removeLayer(catastroLayer);
     if (map.hasLayer(markerLayer)) map.removeLayer(markerLayer);
+    if (map.hasLayer(g1MarkerLayer)) map.removeLayer(g1MarkerLayer);
     if (markerClusterBase && map.hasLayer(markerClusterBase)) map.removeLayer(markerClusterBase);
     if (markerClusterTerreno && map.hasLayer(markerClusterTerreno)) map.removeLayer(markerClusterTerreno);
+    if (markerClusterG1 && map.hasLayer(markerClusterG1)) map.removeLayer(markerClusterG1);
 
     // Montar según el modo
     if (useClustering) {
         if (isBaseActive && markerClusterBase) map.addLayer(markerClusterBase);
         if (isTerrenoActive && markerClusterTerreno) map.addLayer(markerClusterTerreno);
+        if (isG1Active && markerClusterG1) map.addLayer(markerClusterG1);
     } else {
         if (isBaseActive) map.addLayer(catastroLayer);
         if (isTerrenoActive) map.addLayer(markerLayer);
+        if (isG1Active) map.addLayer(g1MarkerLayer);
     }
 }
 
@@ -291,6 +316,9 @@ function updateLayerCounts() {
 
     const elBase = document.getElementById('layer-count-base');
     if (elBase) elBase.textContent = `${stats.global.base.toLocaleString()} registros`;
+
+    const elG1 = document.getElementById('layer-count-g1');
+    if (elG1) elG1.textContent = `${stats.global.g1} registros`;
 }
 
 function initStatsControl() {
@@ -799,6 +827,170 @@ async function loadCatastro() {
 
     } catch (err) {
         console.error("Error al cargar Catastro Pre-existente:", err);
+    }
+}
+
+// --- CARGA DE DATOS DE CUADRILLA G1 (WHATSAPP TERRENO) ---
+async function loadG1Data() {
+    console.log("Cargando datos de Cuadrilla G1 (WhatsApp)...");
+    try {
+        const response = await fetch('data/datos_terreno_g1.geojson');
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+        const geojson = await response.json();
+
+        allG1Features = geojson.features || [];
+        stats.global.g1 = allG1Features.length;
+
+        populateG1DateDropdown(allG1Features);
+        renderG1Features(allG1Features);
+        updateLayerCounts();
+
+    } catch (err) {
+        console.error("Error al cargar datos de Cuadrilla G1:", err);
+    }
+}
+
+function populateG1DateDropdown(features) {
+    const select = document.getElementById('dateFilterG1');
+    if (!select) return;
+
+    const counts = {};
+    features.forEach(f => {
+        const dateKey = f.properties.fecha;
+        const displayKey = f.properties.fecha_display || dateKey;
+        if (!counts[dateKey]) {
+            counts[dateKey] = { count: 0, display: displayKey };
+        }
+        counts[dateKey].count++;
+    });
+
+    select.innerHTML = `<option value="ALL">Todas las Jornadas (${features.length} puntos)</option>`;
+
+    Object.keys(counts).sort().forEach(dateKey => {
+        const item = counts[dateKey];
+        const opt = document.createElement('option');
+        opt.value = dateKey;
+        opt.textContent = `${item.display} (${item.count} puntos)`;
+        select.appendChild(opt);
+    });
+}
+
+function filterG1ByDate(selectedDate) {
+    if (!allG1Features || allG1Features.length === 0) return;
+
+    let filtered = allG1Features;
+    if (selectedDate !== 'ALL') {
+        filtered = allG1Features.filter(f => f.properties.fecha === selectedDate || f.properties.fecha_display === selectedDate);
+    }
+
+    renderG1Features(filtered);
+
+    if (filtered.length > 0 && g1MarkerLayer.getLayers().length > 0) {
+        const group = new L.featureGroup(g1MarkerLayer.getLayers());
+        map.fitBounds(group.getBounds().pad(0.15));
+    }
+}
+
+function renderG1Features(features) {
+    g1MarkerLayer.clearLayers();
+    if (markerClusterG1) markerClusterG1.clearLayers();
+
+    const utm18S = "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs";
+    const wgs84 = "EPSG:4326";
+
+    features.forEach(f => {
+        const props = f.properties;
+        const coords = f.geometry.coordinates;
+        const lng = coords[0];
+        const lat = coords[1];
+
+        let displayUTM = "No disponible";
+        if (typeof proj4 !== 'undefined') {
+            try {
+                const utmCoords = proj4(wgs84, utm18S, [lng, lat]);
+                displayUTM = `${utmCoords[0].toFixed(0)} E, ${utmCoords[1].toFixed(0)} N`;
+            } catch (e) {
+                displayUTM = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            }
+        }
+
+        const urlAntes = props.foto_antes ? encodeURI(props.foto_antes) : null;
+        const urlDespues = props.foto_despues ? encodeURI(props.foto_despues) : null;
+
+        let imagesHTML = '';
+        if (urlAntes || urlDespues) {
+            imagesHTML = `
+                <div class="popup-images-grid">
+                    ${urlAntes ? `
+                    <div class="img-wrapper">
+                        <span class="img-label">Antes</span>
+                        <img src="${urlAntes}" class="popup-image" alt="Antes" onerror="this.src='https://placehold.co/400x250/222/10b981?text=Sin+Foto'" onclick="openImageModal(this.src)">
+                    </div>` : ''}
+                    ${urlDespues ? `
+                    <div class="img-wrapper">
+                        <span class="img-label">Después</span>
+                        <img src="${urlDespues}" class="popup-image" alt="Después" onerror="this.src='https://placehold.co/400x250/222/22c55e?text=Sin+Foto'" onclick="openImageModal(this.src)">
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        const popupContent = `
+            <div class="popup-container g1-popup">
+                <div class="popup-header" style="border-left: 4px solid #10b981;">
+                    <span class="id-badge" style="background:#10b981; color:#fff;">${props.id || 'G1'}</span>
+                    <h4>${props.cuadrilla || 'Cuadrilla G1'}</h4>
+                </div>
+                ${imagesHTML}
+                <div class="popup-details">
+                    <div class="detail-item"><strong><i data-lucide="calendar"></i> Fecha:</strong><span>${props.fecha_display || props.fecha} ${props.hora ? `(${props.hora})` : ''}</span></div>
+                    ${props.dimensiones ? `<div class="detail-item"><strong><i data-lucide="maximize-2"></i> Dimensiones:</strong><span>${props.dimensiones}</span></div>` : ''}
+                    ${props.observaciones ? `<div class="detail-item"><strong><i data-lucide="message-square"></i> Registro:</strong><p>${props.observaciones}</p></div>` : ''}
+                    <div class="coord-badge"><i data-lucide="map-pin"></i> UTM ${displayUTM}</div>
+                    ${props.maps_url ? `
+                    <div style="margin-top: 8px; text-align: center;">
+                        <a href="${props.maps_url}" target="_blank" class="maps-link-btn" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#10b981; text-decoration:none; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; border:1px solid rgba(16,185,129,0.3);">
+                            <i data-lucide="external-link"></i> Abrir en Google Maps
+                        </a>
+                    </div>` : ''}
+                </div>
+            </div>
+        `;
+
+        const marker = L.circleMarker([lat, lng], {
+            pane: 'g1Pane',
+            radius: 7,
+            fillColor: "#10b981",
+            color: "#ffffff",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.95
+        }).bindPopup(popupContent, {
+            maxWidth: 300,
+            className: 'custom-popup'
+        });
+
+        marker.on('popupopen', () => {
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+
+        g1MarkerLayer.addLayer(marker);
+    });
+
+    if (markerClusterG1) {
+        markerClusterG1.addLayers(g1MarkerLayer.getLayers());
+    }
+
+    const elG1 = document.getElementById('layer-count-g1');
+    if (elG1) elG1.textContent = `${features.length} registros`;
+
+    const isG1Active = document.getElementById('layerToggleG1') ? document.getElementById('layerToggleG1').checked : true;
+    if (isG1Active) {
+        if (!useClustering) {
+            if (!map.hasLayer(g1MarkerLayer)) map.addLayer(g1MarkerLayer);
+        } else if (markerClusterG1 && !map.hasLayer(markerClusterG1)) {
+            map.addLayer(markerClusterG1);
+        }
     }
 }
 

@@ -114,6 +114,20 @@
 
                         <div class="layer-item">
                             <div class="layer-info">
+                                <span class="layer-dot g1"></span>
+                                <div>
+                                    <span class="layer-name">Cuadrilla G1 (WhatsApp)</span>
+                                    <span class="layer-sub" id="layer-count-g1">0 registros</span>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="layerToggleG1" checked onchange="toggleLayer('g1', this.checked)">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="layer-item">
+                            <div class="layer-info">
                                 <span class="layer-dot macrosect"></span>
                                 <div>
                                     <span class="layer-name">Macrosectores</span>
@@ -124,6 +138,15 @@
                                 <input type="checkbox" id="layerToggleMacro" checked onchange="toggleLayer('macro', this.checked)">
                                 <span class="slider round"></span>
                             </label>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h3>Filtro por Fecha (Cuadrilla G1)</h3>
+                        <div class="sector-filter-container">
+                            <select id="dateFilterG1" class="sector-select" onchange="filterG1ByDate(this.value)">
+                                <option value="ALL">Todas las Jornadas</option>
+                            </select>
                         </div>
                     </div>
 

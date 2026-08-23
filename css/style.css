@@ -617,6 +617,11 @@ body {
     box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
 }
 
+.layer-dot.g1 {
+    background-color: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
 .layer-dot.macrosect {
     background-color: transparent;
     border: 2px solid #f97316;
