@@ -936,23 +936,18 @@ function renderG1Features(features) {
         }
 
         const popupContent = `
-            <div class="popup-container g1-popup">
-                <div class="popup-header" style="border-left: 4px solid #10b981;">
-                    <span class="id-badge" style="background:#10b981; color:#fff;">${props.id || 'G1'}</span>
-                    <h4>${props.cuadrilla || 'Cuadrilla G1'}</h4>
+            <div class="popup-container">
+                <div class="popup-header">
+                    <span class="id-badge">Nº ${props.id || 'S/N'}</span>
+                    <h4>${props.nombre || 'Señalética Vial'}</h4>
                 </div>
                 ${imagesHTML}
                 <div class="popup-details">
                     <div class="detail-item"><strong><i data-lucide="calendar"></i> Fecha:</strong><span>${props.fecha_display || props.fecha} ${props.hora ? `(${props.hora})` : ''}</span></div>
-                    ${props.dimensiones ? `<div class="detail-item"><strong><i data-lucide="maximize-2"></i> Dimensiones:</strong><span>${props.dimensiones}</span></div>` : ''}
-                    ${props.observaciones ? `<div class="detail-item"><strong><i data-lucide="message-square"></i> Registro:</strong><p>${props.observaciones}</p></div>` : ''}
+                    <div class="detail-item"><strong><i data-lucide="users"></i> Cuadrilla:</strong><span>${props.cuadrilla || 'GRUPO 1'}</span></div>
+                    <div class="detail-item"><strong><i data-lucide="activity"></i> Tipo:</strong><span>${props.tipo || 'Mantención de Señalética'}</span></div>
+                    ${props.observaciones ? `<div class="detail-item"><strong><i data-lucide="info"></i> Obs:</strong><p>${props.observaciones}</p></div>` : ''}
                     <div class="coord-badge"><i data-lucide="map-pin"></i> UTM ${displayUTM}</div>
-                    ${props.maps_url ? `
-                    <div style="margin-top: 8px; text-align: center;">
-                        <a href="${props.maps_url}" target="_blank" class="maps-link-btn" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#10b981; text-decoration:none; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; border:1px solid rgba(16,185,129,0.3);">
-                            <i data-lucide="external-link"></i> Abrir en Google Maps
-                        </a>
-                    </div>` : ''}
                 </div>
             </div>
         `;

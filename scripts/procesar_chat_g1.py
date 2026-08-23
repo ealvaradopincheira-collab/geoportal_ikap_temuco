@@ -233,18 +233,18 @@ def extract_intervention_points(messages):
 
                 point_record = {
                     'id': point_id,
+                    'nombre': 'Señalética Vial',
                     'fecha': date_iso,
                     'fecha_display': c['date'],
                     'hora': time_iso,
                     'lat': lat,
                     'lng': lng,
-                    'cuadrilla': "GRUPO 1 (Acrílica)",
-                    'dimensiones': dims_str,
+                    'cuadrilla': "GRUPO 1",
+                    'tipo': "Mantención de Señalética",
                     'foto_antes': foto_antes,
                     'foto_despues': foto_despues,
                     'total_fotos': len(c['all_images']),
-                    'fotos_todas': c['all_images'],
-                    'observaciones': obs_text,
+                    'observaciones': "",
                     'maps_url': c['maps_url']
                 }
                 
@@ -253,10 +253,10 @@ def extract_intervention_points(messages):
     return all_points
 
 def export_csv(points, out_path):
-    """Exporta los puntos a CSV con el esquema compatible con la planilla maestra."""
+    """Exporta los puntos a CSV con el esquema estándar de la planilla maestra."""
     fieldnames = [
         "Marca temporal",
-        "ID",
+        "Número de Señalética",
         "Fecha",
         "Hora",
         "Cuadrilla",
@@ -264,10 +264,8 @@ def export_csv(points, out_path):
         "Longitud",
         "Fotografía (Antes)",
         "Fotografía (Después)",
-        "Dimensiones",
-        "Total_Fotos",
-        "Observaciones",
-        "URL_Google_Maps"
+        "Tipo de Modificación",
+        "Observaciones"
     ]
     
     with open(out_path, 'w', encoding='utf-8', newline='') as f:
@@ -280,7 +278,7 @@ def export_csv(points, out_path):
             
             writer.writerow({
                 "Marca temporal": f"{p['fecha']} {p['hora']}:00",
-                "ID": p['id'],
+                "Número de Señalética": p['id'],
                 "Fecha": p['fecha'],
                 "Hora": p['hora'],
                 "Cuadrilla": p['cuadrilla'],
@@ -288,16 +286,14 @@ def export_csv(points, out_path):
                 "Longitud": f"{p['lng']:.6f}",
                 "Fotografía (Antes)": path_antes,
                 "Fotografía (Después)": path_despues,
-                "Dimensiones": p['dimensiones'],
-                "Total_Fotos": p['total_fotos'],
-                "Observaciones": p['observaciones'],
-                "URL_Google_Maps": p['maps_url']
+                "Tipo de Modificación": p['tipo'],
+                "Observaciones": p['observaciones']
             })
             
     print(f"[OK] CSV exportado con {len(points)} puntos en: {out_path}")
 
 def export_geojson(points, out_path):
-    """Exporta los puntos a GeoJSON estándar para Leaflet."""
+    """Exporta los puntos a GeoJSON estándar para Leaflet sin textos de chat."""
     features = []
     for p in points:
         path_antes = f"Datos Grupos Terreno/Chat de WhatsApp con G1 acrilica Fernando  Pedro G/{p['foto_antes']}" if p['foto_antes'] else ""
@@ -311,18 +307,18 @@ def export_geojson(points, out_path):
             },
             "properties": {
                 "id": p['id'],
+                "nombre": p['nombre'],
                 "fecha": p['fecha'],
                 "fecha_display": p['fecha_display'],
                 "hora": p['hora'],
                 "cuadrilla": p['cuadrilla'],
+                "tipo": p['tipo'],
                 "foto_antes": path_antes,
                 "foto_despues": path_despues,
                 "nombre_foto_antes": p['foto_antes'],
                 "nombre_foto_despues": p['foto_despues'],
-                "dimensiones": p['dimensiones'],
                 "total_fotos": p['total_fotos'],
-                "observaciones": p['observaciones'],
-                "maps_url": p['maps_url']
+                "observaciones": p['observaciones']
             }
         }
         features.append(feat)
